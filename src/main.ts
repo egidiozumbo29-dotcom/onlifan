@@ -19,8 +19,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
   const config = app.get(ConfigService);
 
+  // CORS: comma-separated list of allowed origins, e.g. "https://app.com,https://staging.app.com".
+  // For dev convenience, "*" or empty allows any origin.
+  const corsRaw = config.get<string>('APP_URL') ?? '*';
+  const allowedOrigins = corsRaw === '*' ? true : corsRaw.split(',').map((s) => s.trim());
   app.enableCors({
-    origin: config.get<string>('APP_URL') ?? true,
+    origin: allowedOrigins,
     credentials: true,
   });
 
@@ -43,8 +47,9 @@ async function bootstrap() {
     }),
   );
 
-  const port = config.get<number>('APP_PORT') ?? 4000;
-  await app.listen(port);
+  // Render/Heroku/Railway expose the public port as PORT; APP_PORT takes precedence locally.
+  const port = Number(process.env.APP_PORT ?? process.env.PORT ?? 4000);
+  await app.listen(port, '0.0.0.0');
 }
 
 bootstrap();

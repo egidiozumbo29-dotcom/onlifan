@@ -16,17 +16,38 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { UsersModule } from './users/users.module';
 import { HealthController } from './health.controller';
 
+function parseRedisConfig() {
+  const url = process.env.REDIS_URL;
+  if (url) {
+    try {
+      const u = new URL(url);
+      return {
+        redis: {
+          host: u.hostname,
+          port: u.port ? parseInt(u.port, 10) : 6379,
+          password: u.password ? decodeURIComponent(u.password) : undefined,
+          username: u.username ? decodeURIComponent(u.username) : undefined,
+          tls: u.protocol === 'rediss:' ? {} : undefined,
+        },
+      };
+    } catch {
+      // fallthrough to host/port
+    }
+  }
+  return {
+    redis: {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    },
+  };
+}
+
 @Module({
   controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
-    BullModule.forRoot({
-      redis: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-      },
-    }),
+    BullModule.forRoot(parseRedisConfig()),
     PrismaModule,
     RedisModule,
     AuthModule,
