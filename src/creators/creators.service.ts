@@ -48,6 +48,51 @@ export class CreatorsService {
     return profile;
   }
 
+  async listPublic(limit = 20) {
+    return this.prisma.creatorProfile.findMany({
+      where: { status: CreatorStatus.ACTIVE },
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        bio: true,
+        bannerUrl: true,
+        subscriptionPriceCents: true,
+        currency: true,
+      },
+    });
+  }
+
+  async listPostsByUsername(username: string, limit = 20) {
+    const profile = await this.prisma.creatorProfile.findUnique({
+      where: { username },
+      select: { id: true, status: true },
+    });
+    if (!profile || profile.status !== CreatorStatus.ACTIVE) {
+      throw new NotFoundException('Creator non trovato');
+    }
+    return this.prisma.post.findMany({
+      where: {
+        creatorId: profile.id,
+        status: 'PUBLISHED',
+        visibility: { in: ['PUBLIC', 'SUBSCRIBERS_ONLY', 'PAID_POST'] },
+      },
+      take: limit,
+      orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
+      select: {
+        id: true,
+        title: true,
+        body: true,
+        visibility: true,
+        priceCents: true,
+        currency: true,
+        publishedAt: true,
+      },
+    });
+  }
+
   async findByUsername(username: string) {
     const profile = await this.prisma.creatorProfile.findUnique({
       where: { username },

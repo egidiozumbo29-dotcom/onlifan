@@ -17,10 +17,13 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Apply middleware
-  app.use(new RequestIdMiddleware().use);
-  app.use(new LoggingMiddleware().use);
-  app.use(new TimingMiddleware().use);
+  // Apply middleware (bind to preserve `this` context for logger access)
+  const requestIdMw = new RequestIdMiddleware();
+  const loggingMw = new LoggingMiddleware();
+  const timingMw = new TimingMiddleware();
+  app.use(requestIdMw.use.bind(requestIdMw));
+  app.use(loggingMw.use.bind(loggingMw));
+  app.use(timingMw.use.bind(timingMw));
 
   // Apply global interceptors
   app.useGlobalInterceptors(new TransformInterceptor(), new TimeoutInterceptor());

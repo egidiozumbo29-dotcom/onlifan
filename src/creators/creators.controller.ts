@@ -20,8 +20,18 @@ export class CreatorsController {
     return this.creatorsService.findMine(user.id);
   }
 
+  @Get()
+  list() {
+    return this.creatorsService.listPublic();
+  }
+
   @Get(':username')
   findByUsername(@Param('username') username: string) {
     return this.creatorsService.findByUsername(username);
+  }
+
+  @Get(':username/posts')
+  posts(@Param('username') username: string) {
+    return this.creatorsService.listPostsByUsername(username);
   }
 }
