@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { PostInteractions } from '@/components/PostInteractions';
 
 type CreatorProfile = {
   id: string;
@@ -26,6 +27,7 @@ export default function CreatorPage({ params }: { params: Promise<{ username: st
     visibility: string;
     publishedAt?: string | null;
     media?: Array<{ id: string; type: string; url: string | null; locked: boolean }>;
+    _count?: { likes: number; comments: number };
   };
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [posts, setPosts] = useState<PostWithMedia[]>([]);
@@ -169,6 +171,12 @@ export default function CreatorPage({ params }: { params: Promise<{ username: st
                     {locked && (
                       <p className="mt-3 text-sm text-pink-300">Iscriviti per leggere il contenuto completo.</p>
                     )}
+                    <PostInteractions
+                      postId={p.id}
+                      initialLikes={p._count?.likes ?? 0}
+                      initialComments={p._count?.comments ?? 0}
+                      locked={locked}
+                    />
                   </article>
                 );
               })}

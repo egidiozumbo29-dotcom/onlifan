@@ -37,7 +37,7 @@ class ApiClient {
     }
   }
 
-  async request<T>(
+  async request<T = unknown>(
     path: string,
     options: RequestInit & { auth?: boolean } = {},
   ): Promise<T> {
@@ -65,6 +65,9 @@ class ApiClient {
   }
   patch<T>(path: string, body: unknown, auth = false) {
     return this.request<T>(path, { method: 'PATCH', body: JSON.stringify(body), auth });
+  }
+  delete<T>(path: string, auth = false) {
+    return this.request<T>(path, { method: 'DELETE', auth });
   }
 
   /** Upload an image directly to S3/MinIO via presigned URL, then mark as READY. */

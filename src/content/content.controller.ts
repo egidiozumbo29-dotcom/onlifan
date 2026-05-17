@@ -53,7 +53,6 @@ export class ContentController {
     return this.contentService.createComment(user, id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get(':id/comments')
   comments(@Param('id') id: string, @Query() query: FeedQueryDto) {
     return this.contentService.getComments(id, query);

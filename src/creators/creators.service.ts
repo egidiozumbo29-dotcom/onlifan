@@ -119,6 +119,7 @@ export class CreatorsService {
         priceCents: true,
         currency: true,
         publishedAt: true,
+        _count: { select: { likes: true, comments: true } },
         media: {
           orderBy: { sortOrder: 'asc' },
           select: {
