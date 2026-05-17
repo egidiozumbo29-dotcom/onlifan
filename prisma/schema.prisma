@@ -1,0 +1,569 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  CREATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+  PENDING_EMAIL_VERIFICATION
+}
+
+enum CreatorStatus {
+  PENDING_REVIEW
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+enum PostVisibility {
+  PUBLIC
+  SUBSCRIBERS_ONLY
+  PAID_POST
+  PRIVATE
+  ARCHIVED
+  REMOVED
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  FLAGGED
+  REMOVED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum MediaStatus {
+  PENDING_UPLOAD
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+  REMOVED
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELED
+  UNPAID
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  PARTIALLY_REFUNDED
+  REFUNDED
+  DISPUTED
+}
+
+enum PayoutStatus {
+  PENDING
+  SCHEDULED
+  IN_TRANSIT
+  PAID
+  FAILED
+  CANCELED
+}
+
+enum LedgerEntryType {
+  FAN_PAYMENT
+  PLATFORM_FEE
+  CREATOR_EARNING
+  REFUND
+  CHARGEBACK
+  PAYOUT
+  ADJUSTMENT
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum EarningStatus {
+  PENDING
+  AVAILABLE
+  PAID
+  HELD
+  REVERSED
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum ChargebackStatus {
+  NEEDS_RESPONSE
+  UNDER_REVIEW
+  WON
+  LOST
+  WARNING_CLOSED
+}
+
+enum ReportTargetType {
+  USER
+  CREATOR
+  POST
+  MEDIA
+  MESSAGE
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  REJECTED
+}
+
+model User {
+  id              String          @id @default(uuid()) @db.Uuid
+  email           String          @unique
+  passwordHash    String          @map("password_hash")
+  displayName     String          @map("display_name")
+  avatarUrl       String?         @map("avatar_url")
+  status          UserStatus      @default(PENDING_EMAIL_VERIFICATION)
+  emailVerifiedAt DateTime?       @map("email_verified_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  roles           UserRole[]
+  refreshTokens   RefreshToken[]
+  sessions        Session[]
+  emailTokens     EmailVerificationToken[]
+  creatorProfile  CreatorProfile?
+  subscriptions   Subscription[]  @relation("FanSubscriptions")
+  payments        Payment[]       @relation("FanPayments")
+  postLikes       PostLike[]
+  comments        PostComment[]
+  reports         Report[]        @relation("ReporterReports")
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+model UserRole {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  role      Role
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  sessionId   String    @map("session_id") @db.Uuid
+  tokenHash   String    @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session     Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Session {
+  id               String         @id @default(uuid()) @db.Uuid
+  userId           String         @map("user_id") @db.Uuid
+  userAgent        String?        @map("user_agent")
+  ipAddress        String?        @map("ip_address")
+  lastSeenAt       DateTime       @default(now()) @map("last_seen_at")
+  expiresAt        DateTime       @map("expires_at")
+  revokedAt        DateTime?      @map("revoked_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens    RefreshToken[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+model CreatorProfile {
+  id                         String         @id @default(uuid()) @db.Uuid
+  userId                     String         @unique @map("user_id") @db.Uuid
+  username                   String         @unique
+  displayName                String         @map("display_name")
+  bio                        String?
+  bannerUrl                  String?        @map("banner_url")
+  subscriptionPriceCents     Int            @map("subscription_price_cents")
+  currency                   String         @default("eur")
+  status                     CreatorStatus  @default(PENDING_REVIEW)
+  stripeAccountId            String?        @unique @map("stripe_account_id")
+  stripeProductId            String?        @unique @map("stripe_product_id")
+  stripePriceId              String?        @unique @map("stripe_price_id")
+  stripeOnboardingComplete   Boolean        @default(false) @map("stripe_onboarding_complete")
+  payoutsEnabled             Boolean        @default(false) @map("payouts_enabled")
+  chargesEnabled             Boolean        @default(false) @map("charges_enabled")
+  createdAt                  DateTime       @default(now()) @map("created_at")
+  updatedAt                  DateTime       @updatedAt @map("updated_at")
+  user                       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts                      Post[]
+  media                      Media[]
+  subscriptions              Subscription[]
+  payments                   Payment[]
+  payouts                    Payout[]
+  earnings                   CreatorEarning[]
+  ledgerEntries              LedgerEntry[]
+
+  @@map("creator_profiles")
+}
+
+model Post {
+  id          String         @id @default(uuid()) @db.Uuid
+  creatorId   String         @map("creator_id") @db.Uuid
+  title       String?
+  body        String?
+  visibility  PostVisibility @default(SUBSCRIBERS_ONLY)
+  priceCents  Int?           @map("price_cents")
+  currency    String?        @default("eur")
+  status      PostStatus     @default(DRAFT)
+  publishedAt DateTime?      @map("published_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  creator     CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  media       PostMedia[]
+  purchases   PostPurchase[]
+  likes       PostLike[]
+  comments    PostComment[]
+
+  @@index([creatorId, status, publishedAt])
+  @@map("posts")
+}
+
+model PostLike {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
+  @@map("post_likes")
+}
+
+model PostComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([userId])
+  @@map("post_comments")
+}
+
+model PostPurchase {
+  id                    String   @id @default(uuid()) @db.Uuid
+  postId                String   @map("post_id") @db.Uuid
+  fanId                 String   @map("fan_id") @db.Uuid
+  stripePaymentIntentId String?  @unique @map("stripe_payment_intent_id")
+  amountCents           Int      @map("amount_cents")
+  currency              String
+  createdAt             DateTime @default(now()) @map("created_at")
+  post                  Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, fanId])
+  @@index([fanId])
+  @@map("post_purchases")
+}
+
+model Media {
+  id                 String         @id @default(uuid()) @db.Uuid
+  creatorId          String         @map("creator_id") @db.Uuid
+  type               MediaType
+  status             MediaStatus    @default(PENDING_UPLOAD)
+  bucket             String
+  objectKey          String         @map("object_key")
+  processedObjectKey String?        @map("processed_object_key")
+  thumbnailObjectKey String?        @map("thumbnail_object_key")
+  mimeType           String         @map("mime_type")
+  sizeBytes          BigInt         @map("size_bytes")
+  durationSeconds    Int?           @map("duration_seconds")
+  width              Int?
+  height             Int?
+  checksum           String?
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  creator            CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  posts              PostMedia[]
+
+  @@unique([bucket, objectKey])
+  @@index([creatorId, status])
+  @@map("media")
+}
+
+model PostMedia {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  mediaId   String   @map("media_id") @db.Uuid
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, mediaId])
+  @@index([postId, sortOrder])
+  @@map("post_media")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  fanId                String             @map("fan_id") @db.Uuid
+  creatorId            String             @map("creator_id") @db.Uuid
+  stripeSubscriptionId String             @unique @map("stripe_subscription_id")
+  stripeCustomerId     String             @map("stripe_customer_id")
+  status               SubscriptionStatus
+  currentPeriodStart   DateTime           @map("current_period_start")
+  currentPeriodEnd     DateTime           @map("current_period_end")
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  canceledAt           DateTime?          @map("canceled_at")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  fan                  User               @relation("FanSubscriptions", fields: [fanId], references: [id], onDelete: Cascade)
+  creator              CreatorProfile     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  payments             Payment[]
+
+  @@unique([fanId, creatorId])
+  @@index([fanId, status])
+  @@index([creatorId, status])
+  @@index([currentPeriodEnd])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                    String          @id @default(uuid()) @db.Uuid
+  fanId                 String          @map("fan_id") @db.Uuid
+  creatorId             String          @map("creator_id") @db.Uuid
+  subscriptionId        String?         @map("subscription_id") @db.Uuid
+  stripePaymentIntentId String?         @unique @map("stripe_payment_intent_id")
+  stripeInvoiceId       String?         @unique @map("stripe_invoice_id")
+  stripeChargeId        String?         @unique @map("stripe_charge_id")
+  amountCents           Int             @map("amount_cents")
+  platformFeeCents      Int             @map("platform_fee_cents")
+  creatorNetCents       Int             @map("creator_net_cents")
+  currency              String
+  status                PaymentStatus
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  fan                   User            @relation("FanPayments", fields: [fanId], references: [id])
+  creator               CreatorProfile  @relation(fields: [creatorId], references: [id])
+  subscription          Subscription?   @relation(fields: [subscriptionId], references: [id])
+  earnings              CreatorEarning[]
+  refunds               Refund[]
+  chargebacks           Chargeback[]
+  ledgerEntries         LedgerEntry[]
+
+  @@index([fanId])
+  @@index([creatorId])
+  @@index([status])
+  @@map("payments")
+}
+
+model Payout {
+  id             String         @id @default(uuid()) @db.Uuid
+  creatorId      String         @map("creator_id") @db.Uuid
+  stripePayoutId String?        @unique @map("stripe_payout_id")
+  amountCents    Int            @map("amount_cents")
+  currency       String
+  status         PayoutStatus
+  scheduledFor   DateTime?      @map("scheduled_for")
+  arrivalDate    DateTime?      @map("arrival_date")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  creator        CreatorProfile @relation(fields: [creatorId], references: [id])
+  earnings       CreatorEarning[]
+  ledgerEntries  LedgerEntry[]
+
+  @@index([creatorId, status])
+  @@map("payouts")
+}
+
+model CreatorEarning {
+  id             String         @id @default(uuid()) @db.Uuid
+  creatorId      String         @map("creator_id") @db.Uuid
+  paymentId      String         @map("payment_id") @db.Uuid
+  payoutId       String?        @map("payout_id") @db.Uuid
+  grossCents     Int            @map("gross_cents")
+  platformFeeCents Int          @map("platform_fee_cents")
+  netCents       Int            @map("net_cents")
+  currency       String
+  status         EarningStatus  @default(PENDING)
+  availableAt    DateTime       @map("available_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  creator        CreatorProfile @relation(fields: [creatorId], references: [id])
+  payment        Payment        @relation(fields: [paymentId], references: [id])
+  payout         Payout?        @relation(fields: [payoutId], references: [id])
+
+  @@index([creatorId, status])
+  @@index([availableAt])
+  @@map("creator_earnings")
+}
+
+model LedgerEntry {
+  id          String          @id @default(uuid()) @db.Uuid
+  creatorId   String?         @map("creator_id") @db.Uuid
+  paymentId   String?         @map("payment_id") @db.Uuid
+  payoutId    String?         @map("payout_id") @db.Uuid
+  type        LedgerEntryType
+  direction   LedgerDirection
+  amountCents Int             @map("amount_cents")
+  currency    String
+  description String?
+  metadata    Json?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  creator     CreatorProfile? @relation(fields: [creatorId], references: [id])
+  payment     Payment?        @relation(fields: [paymentId], references: [id])
+  payout      Payout?         @relation(fields: [payoutId], references: [id])
+
+  @@index([creatorId])
+  @@index([paymentId])
+  @@index([payoutId])
+  @@index([type])
+  @@map("ledger_entries")
+}
+
+model Refund {
+  id             String       @id @default(uuid()) @db.Uuid
+  paymentId      String       @map("payment_id") @db.Uuid
+  stripeRefundId String       @unique @map("stripe_refund_id")
+  amountCents    Int          @map("amount_cents")
+  currency       String
+  reason         String?
+  status         RefundStatus
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  payment        Payment      @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
+  @@index([status])
+  @@map("refunds")
+}
+
+model Chargeback {
+  id                String           @id @default(uuid()) @db.Uuid
+  paymentId         String           @map("payment_id") @db.Uuid
+  stripeDisputeId   String           @unique @map("stripe_dispute_id")
+  amountCents       Int              @map("amount_cents")
+  currency          String
+  reason            String?
+  status            ChargebackStatus
+  evidenceDueBy     DateTime?        @map("evidence_due_by")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  payment           Payment          @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
+  @@index([status])
+  @@map("chargebacks")
+}
+
+model Report {
+  id         String           @id @default(uuid()) @db.Uuid
+  reporterId String           @map("reporter_id") @db.Uuid
+  targetType ReportTargetType @map("target_type")
+  targetId   String           @map("target_id") @db.Uuid
+  reason     String
+  status     ReportStatus     @default(OPEN)
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  reporter   User             @relation("ReporterReports", fields: [reporterId], references: [id])
+
+  @@index([targetType, targetId])
+  @@index([status])
+  @@map("reports")
+}
+
+model ModerationAction {
+  id         String           @id @default(uuid()) @db.Uuid
+  adminId    String           @map("admin_id") @db.Uuid
+  targetType ReportTargetType @map("target_type")
+  targetId   String           @map("target_id") @db.Uuid
+  action     String
+  reason     String
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+  @@map("moderation_actions")
+}
+
+model StripeEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  stripeEventId String    @unique @map("stripe_event_id")
+  type          String
+  payload       Json
+  processedAt   DateTime? @map("processed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([type])
+  @@map("stripe_events")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  actor      User?    @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}

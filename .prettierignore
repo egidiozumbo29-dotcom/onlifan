@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+coverage/
+*.md
+.env
+.env.local
+.env.*.local
+package-lock.json
