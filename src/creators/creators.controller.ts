@@ -20,6 +20,12 @@ export class CreatorsController {
     return this.creatorsService.findMine(user.id);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('me/posts')
+  myPosts(@CurrentUser() user: { id: string }) {
+    return this.creatorsService.listMyPosts(user.id);
+  }
+
   @Get()
   list() {
     return this.creatorsService.listPublic();

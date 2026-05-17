@@ -48,6 +48,32 @@ export class CreatorsService {
     return profile;
   }
 
+  async listMyPosts(userId: string, limit = 50) {
+    const profile = await this.prisma.creatorProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!profile) {
+      throw new NotFoundException('Profilo creator non trovato');
+    }
+    return this.prisma.post.findMany({
+      where: { creatorId: profile.id },
+      take: limit,
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        title: true,
+        body: true,
+        visibility: true,
+        priceCents: true,
+        currency: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+      },
+    });
+  }
+
   async listPublic(limit = 20) {
     return this.prisma.creatorProfile.findMany({
       where: { status: CreatorStatus.ACTIVE },
