@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { MediaStatus, PostVisibility } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import { StorageFileType } from '../storage/interfaces/storage.interface';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { CreateUploadUrlDto } from './dto/create-upload-url.dto';
 
@@ -11,6 +13,7 @@ export class MediaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly storage: StorageService,
     private readonly subscriptions: SubscriptionsService,
   ) {}
 
@@ -22,27 +25,35 @@ export class MediaService {
     }
 
     const mediaId = randomUUID();
+    const filename = dto.filename ?? `file-${Date.now()}`;
     const bucket = this.config.get<string>('S3_BUCKET') ?? 'dollyfans-local';
-    const objectKey = `originals/${creator.id}/${mediaId}`;
 
-    const media = await this.prisma.media.create({
+    const upload = await this.storage.generateUploadUrl(
+      creator.id,
+      mediaId,
+      filename,
+      dto.mimeType,
+      StorageFileType.ORIGINAL,
+    );
+
+    await this.prisma.media.create({
       data: {
         id: mediaId,
         creatorId: creator.id,
         type: dto.type,
         status: MediaStatus.PENDING_UPLOAD,
         bucket,
-        objectKey,
+        objectKey: upload.key,
         mimeType: dto.mimeType,
         sizeBytes: dto.sizeBytes,
       },
     });
 
     return {
-      mediaId: media.id,
-      objectKey,
-      uploadUrl: 'Presigned URL S3/R2 da generare nello StorageService',
-      expiresInSeconds: Number(this.config.get<string>('S3_SIGNED_URL_TTL_SECONDS') ?? 900),
+      mediaId,
+      objectKey: upload.key,
+      uploadUrl: this.storage.rewriteForPublic(upload.uploadUrl),
+      expiresAt: upload.expiresAt,
     };
   }
 
@@ -60,9 +71,16 @@ export class MediaService {
       throw new ForbiddenException('Non autorizzato');
     }
 
+    // Verifica che il file sia effettivamente presente su S3/MinIO
+    const exists = await this.storage.fileExists(media.objectKey);
+    if (!exists) {
+      throw new NotFoundException("File non trovato sull'object storage");
+    }
+
+    // Per le immagini saltiamo il workflow di processing -> READY direttamente
     return this.prisma.media.update({
       where: { id: mediaId },
-      data: { status: MediaStatus.UPLOADED },
+      data: { status: MediaStatus.READY },
     });
   }
 
@@ -111,13 +129,13 @@ export class MediaService {
       }
     }
 
-    const cdnBaseUrl = this.config.get<string>('CDN_BASE_URL') ?? 'https://cdn.example.com';
     const deliveryKey = media.processedObjectKey ?? media.objectKey;
+    const signed = await this.storage.generateSignedUrl(deliveryKey, 900);
 
     return {
       mediaId: media.id,
-      url: `${cdnBaseUrl}/${deliveryKey}?signature=placeholder&expires=${Date.now() + 900000}`,
-      expiresInSeconds: Number(this.config.get<string>('S3_SIGNED_URL_TTL_SECONDS') ?? 900),
+      url: this.storage.rewriteForPublic(signed.signedUrl),
+      expiresAt: signed.expiresAt,
       deliveryKey,
     };
   }

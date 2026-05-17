@@ -1,11 +1,15 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreatorStatus, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { ApplyCreatorDto } from './dto/apply-creator.dto';
 
 @Injectable()
 export class CreatorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async apply(userId: string, dto: ApplyCreatorDto) {
     const existing = await this.prisma.creatorProfile.findFirst({
@@ -99,7 +103,7 @@ export class CreatorsService {
     if (!profile || profile.status !== CreatorStatus.ACTIVE) {
       throw new NotFoundException('Creator non trovato');
     }
-    return this.prisma.post.findMany({
+    const posts = await this.prisma.post.findMany({
       where: {
         creatorId: profile.id,
         status: 'PUBLISHED',
@@ -115,8 +119,44 @@ export class CreatorsService {
         priceCents: true,
         currency: true,
         publishedAt: true,
+        media: {
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            sortOrder: true,
+            media: {
+              select: { id: true, type: true, status: true, mimeType: true, objectKey: true },
+            },
+          },
+        },
       },
     });
+
+    // Generate signed URLs only for PUBLIC posts (paywall protects others)
+    return Promise.all(
+      posts.map(async (post) => {
+        const mediaWithUrls = await Promise.all(
+          post.media.map(async (entry) => {
+            let url: string | null = null;
+            if (post.visibility === 'PUBLIC' && entry.media.status === 'READY') {
+              try {
+                const signed = await this.storage.generateSignedUrl(entry.media.objectKey, 900);
+                url = this.storage.rewriteForPublic(signed.signedUrl);
+              } catch {
+                url = null;
+              }
+            }
+            return {
+              id: entry.media.id,
+              type: entry.media.type,
+              mimeType: entry.media.mimeType,
+              url,
+              locked: post.visibility !== 'PUBLIC',
+            };
+          }),
+        );
+        return { ...post, media: mediaWithUrls };
+      }),
+    );
   }
 
   async findByUsername(username: string) {

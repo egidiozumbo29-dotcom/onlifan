@@ -2,6 +2,13 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+
+// Allow JSON.stringify to handle BigInt (Prisma returns BigInt for some columns).
+// Convert to string to avoid precision loss; clients can parse if needed.
+(BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function () {
+  return this.toString();
+};
+
 import { LoggingMiddleware } from './common/middleware/logging.middleware';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { TimingMiddleware } from './common/middleware/timing.middleware';

@@ -24,6 +24,7 @@ export default function NewPostPage() {
   const [price, setPrice] = useState(2.99);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploads, setUploads] = useState<Array<{ id: string; preview: string; uploading: boolean }>>([]);
 
   const isCreator = user?.roles.some((r) => r.role === 'CREATOR');
 
@@ -32,12 +33,34 @@ export default function NewPostPage() {
     if (!loading && user && !isCreator) router.push('/creators/apply');
   }, [loading, user, isCreator, router]);
 
+  const onFiles = async (files: FileList | null) => {
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) continue;
+      const tmpId = `tmp-${Date.now()}-${Math.random()}`;
+      const preview = URL.createObjectURL(file);
+      setUploads((u) => [...u, { id: tmpId, preview, uploading: true }]);
+      try {
+        const { mediaId } = await api.uploadImage(file);
+        setUploads((u) => u.map((x) => (x.id === tmpId ? { ...x, id: mediaId, uploading: false } : x)));
+      } catch (err) {
+        setUploads((u) => u.filter((x) => x.id !== tmpId));
+        setError(err instanceof Error ? err.message : 'Upload fallito');
+      }
+    }
+  };
+
+  const removeUpload = (id: string) => {
+    setUploads((u) => u.filter((x) => x.id !== id));
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      const payload: Record<string, unknown> = { title, body, visibility };
+      const mediaIds = uploads.filter((u) => !u.uploading && !u.id.startsWith('tmp-')).map((u) => u.id);
+      const payload: Record<string, unknown> = { title, body, visibility, mediaIds };
       if (visibility === 'PAID_POST') {
         payload.priceCents = Math.round(price * 100);
         payload.currency = 'eur';
@@ -80,6 +103,45 @@ export default function NewPostPage() {
               className="input min-h-32"
               placeholder="Cosa vuoi raccontare?"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Immagini</label>
+            <label className="block cursor-pointer p-6 rounded-lg border-2 border-dashed border-[var(--border)] hover:border-pink-500/60 transition text-center">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => onFiles(e.target.files)}
+                className="hidden"
+              />
+              <span className="text-3xl">📸</span>
+              <p className="text-sm text-zinc-300 mt-1">Click per selezionare immagini</p>
+              <p className="text-xs text-zinc-500">JPG, PNG, GIF — vengono caricate direttamente su MinIO/S3</p>
+            </label>
+            {uploads.length > 0 && (
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {uploads.map((u) => (
+                  <div key={u.id} className="relative group rounded-lg overflow-hidden border border-[var(--border)] aspect-square">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={u.preview} alt="" className="w-full h-full object-cover" />
+                    {u.uploading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <span className="text-xs text-white">Upload…</span>
+                      </div>
+                    )}
+                    {!u.uploading && (
+                      <button
+                        type="button"
+                        onClick={() => removeUpload(u.id)}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white text-xs hover:bg-red-500"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Visibilità</label>

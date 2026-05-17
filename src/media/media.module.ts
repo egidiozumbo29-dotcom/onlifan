@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
+import { StorageModule } from '../storage/storage.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { MediaController } from './media.controller';
 import { MediaService } from './media.service';
 
 @Module({
-  imports: [SubscriptionsModule],
+  imports: [SubscriptionsModule, StorageModule],
   controllers: [MediaController],
   providers: [MediaService],
 })

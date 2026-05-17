@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsString, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { MediaType } from '@prisma/client';
 
 export class CreateUploadUrlDto {
@@ -11,4 +11,8 @@ export class CreateUploadUrlDto {
   @IsInt()
   @Min(1)
   sizeBytes!: number;
+
+  @IsOptional()
+  @IsString()
+  filename?: string;
 }

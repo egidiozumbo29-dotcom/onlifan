@@ -66,6 +66,30 @@ class ApiClient {
   patch<T>(path: string, body: unknown, auth = false) {
     return this.request<T>(path, { method: 'PATCH', body: JSON.stringify(body), auth });
   }
+
+  /** Upload an image directly to S3/MinIO via presigned URL, then mark as READY. */
+  async uploadImage(file: File): Promise<{ mediaId: string }> {
+    const meta = await this.post<{ mediaId: string; uploadUrl: string }>(
+      '/media/upload-url',
+      {
+        type: 'IMAGE',
+        mimeType: file.type || 'image/jpeg',
+        sizeBytes: file.size,
+        filename: file.name,
+      },
+      true,
+    );
+    const putRes = await fetch(meta.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type || 'image/jpeg' },
+    });
+    if (!putRes.ok) {
+      throw new Error(`Upload fallito (HTTP ${putRes.status})`);
+    }
+    await this.post(`/media/${meta.mediaId}/confirm-upload`, {}, true);
+    return { mediaId: meta.mediaId };
+  }
 }
 
 export const api = new ApiClient();

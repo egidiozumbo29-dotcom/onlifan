@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -6,6 +6,8 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  CreateBucketCommand,
+  HeadBucketCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -17,18 +19,33 @@ import {
 } from './interfaces/storage.interface';
 
 @Injectable()
-export class StorageService {
+export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private readonly s3Client: S3Client;
   private readonly bucket: string;
+  private readonly publicEndpoint: string;
 
   constructor(private readonly configService: ConfigService) {
     const storageConfig: StorageConfig = {
-      accessKeyId: this.configService.get<string>('STORAGE_ACCESS_KEY_ID') || '',
-      secretAccessKey: this.configService.get<string>('STORAGE_SECRET_ACCESS_KEY') || '',
-      bucket: this.configService.get<string>('STORAGE_BUCKET') || '',
-      region: this.configService.get<string>('STORAGE_REGION') || 'auto',
-      endpoint: this.configService.get<string>('STORAGE_ENDPOINT'),
+      accessKeyId:
+        this.configService.get<string>('S3_ACCESS_KEY_ID') ||
+        this.configService.get<string>('STORAGE_ACCESS_KEY_ID') ||
+        '',
+      secretAccessKey:
+        this.configService.get<string>('S3_SECRET_ACCESS_KEY') ||
+        this.configService.get<string>('STORAGE_SECRET_ACCESS_KEY') ||
+        '',
+      bucket:
+        this.configService.get<string>('S3_BUCKET') ||
+        this.configService.get<string>('STORAGE_BUCKET') ||
+        'dollyfans-local',
+      region:
+        this.configService.get<string>('S3_REGION') ||
+        this.configService.get<string>('STORAGE_REGION') ||
+        'auto',
+      endpoint:
+        this.configService.get<string>('S3_ENDPOINT') ||
+        this.configService.get<string>('STORAGE_ENDPOINT'),
       forcePathStyle: true,
     };
 
@@ -43,8 +60,41 @@ export class StorageService {
     });
 
     this.bucket = storageConfig.bucket;
+    this.publicEndpoint =
+      this.configService.get<string>('S3_PUBLIC_ENDPOINT') || storageConfig.endpoint || '';
 
     this.logger.log(`Storage service initialized with bucket: ${this.bucket}`);
+  }
+
+  async onModuleInit() {
+    if (!this.bucket || !this.s3Client.config.endpoint) return;
+    try {
+      await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      this.logger.log(`Bucket "${this.bucket}" already exists.`);
+    } catch {
+      try {
+        await this.s3Client.send(new CreateBucketCommand({ Bucket: this.bucket }));
+        this.logger.log(`Created bucket "${this.bucket}".`);
+      } catch (e) {
+        this.logger.warn(
+          `Could not create bucket "${this.bucket}": ${e instanceof Error ? e.message : 'unknown'}`,
+        );
+      }
+    }
+  }
+
+  /** Rewrites S3 endpoint host to a browser-reachable URL (S3_PUBLIC_ENDPOINT) for presigned URLs. */
+  rewriteForPublic(url: string): string {
+    if (!this.publicEndpoint) return url;
+    try {
+      const u = new URL(url);
+      const pub = new URL(this.publicEndpoint);
+      u.protocol = pub.protocol;
+      u.host = pub.host;
+      return u.toString();
+    } catch {
+      return url;
+    }
   }
 
   async generateUploadUrl(

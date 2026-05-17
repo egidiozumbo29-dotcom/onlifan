@@ -19,8 +19,16 @@ type CreatorProfile = {
 export default function CreatorPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = use(params);
   const { user } = useAuth();
+  type PostWithMedia = {
+    id: string;
+    title?: string | null;
+    body?: string | null;
+    visibility: string;
+    publishedAt?: string | null;
+    media?: Array<{ id: string; type: string; url: string | null; locked: boolean }>;
+  };
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
-  const [posts, setPosts] = useState<Array<{ id: string; title?: string | null; body?: string | null; visibility: string; publishedAt?: string | null }>>([]);
+  const [posts, setPosts] = useState<PostWithMedia[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
@@ -143,6 +151,20 @@ export default function CreatorPage({ params }: { params: Promise<{ username: st
                     {p.title && <h3 className="mt-2 font-semibold text-lg">{p.title}</h3>}
                     {p.body && (
                       <p className={`mt-1 text-zinc-300 ${locked ? 'blur-sm select-none' : ''}`}>{p.body}</p>
+                    )}
+                    {p.media && p.media.length > 0 && (
+                      <div className={`mt-3 grid grid-cols-2 gap-2 ${locked ? 'blur-md pointer-events-none' : ''}`}>
+                        {p.media.map((m) =>
+                          m.url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img key={m.id} src={m.url} alt="" className="w-full rounded-lg object-cover aspect-square" />
+                          ) : (
+                            <div key={m.id} className="w-full rounded-lg aspect-square bg-gradient-to-br from-pink-500/20 to-purple-600/20 flex items-center justify-center text-4xl">
+                              🔒
+                            </div>
+                          ),
+                        )}
+                      </div>
                     )}
                     {locked && (
                       <p className="mt-3 text-sm text-pink-300">Iscriviti per leggere il contenuto completo.</p>
