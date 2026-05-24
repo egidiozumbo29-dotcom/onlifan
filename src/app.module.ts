@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bull';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { ContentModule } from './content/content.module';
@@ -15,6 +16,23 @@ import { StorageModule } from './storage/storage.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { UsersModule } from './users/users.module';
 import { HealthController } from './health.controller';
+import { ChatModule } from './chat/chat.module';
+import { TipsModule } from './tips/tips.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { SocialModule } from './social/social.module';
+import { StoriesModule } from './stories/stories.module';
+import { BundlesModule } from './bundles/bundles.module';
+import { PromosModule } from './promos/promos.module';
+import { DiscoverModule } from './discover/discover.module';
+import { WalletModule } from './wallet/wallet.module';
+import { ReferralsModule } from './referrals/referrals.module';
+import { KycModule } from './kyc/kyc.module';
+import { LiveModule } from './live/live.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
+import { DmcaModule } from './dmca/dmca.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { AIModule } from './ai/ai.module';
+import { PaymentsAdapterModule } from './payments-adapters/payments-adapter.module';
 
 function parseRedisConfig() {
   const url = process.env.REDIS_URL;
@@ -48,6 +66,7 @@ function parseRedisConfig() {
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     BullModule.forRoot(parseRedisConfig()),
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     AuthModule,
@@ -55,11 +74,28 @@ function parseRedisConfig() {
     CreatorsModule,
     SubscriptionsModule,
     PaymentsModule,
+    PaymentsAdapterModule,
     ContentModule,
     MediaModule,
     JobsModule,
     StorageModule,
     AdminModule,
+    NotificationsModule,
+    ChatModule,
+    TipsModule,
+    SocialModule,
+    StoriesModule,
+    BundlesModule,
+    PromosModule,
+    DiscoverModule,
+    WalletModule,
+    ReferralsModule,
+    KycModule,
+    LiveModule,
+    SchedulerModule,
+    DmcaModule,
+    AnalyticsModule,
+    AIModule,
   ],
 })
 export class AppModule {}

@@ -8,9 +8,21 @@ export class SubscriptionsController {
   constructor(private readonly subscriptionsService: SubscriptionsService) {}
 
   @UseGuards(JwtAuthGuard)
+  @Get('me')
+  listMine(@CurrentUser() user: { id: string }) {
+    return this.subscriptionsService.listMine(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':creatorId/checkout')
   checkout(@CurrentUser() user: { id: string }, @Param('creatorId') creatorId: string) {
     return this.subscriptionsService.createCheckout(user.id, creatorId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':subscriptionId/cancel')
+  cancel(@CurrentUser() user: { id: string }, @Param('subscriptionId') subscriptionId: string) {
+    return this.subscriptionsService.cancel(user.id, subscriptionId);
   }
 
   @UseGuards(JwtAuthGuard)

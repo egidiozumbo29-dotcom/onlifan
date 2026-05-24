@@ -1,11 +1,14 @@
 import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
 import { JobsService } from './jobs.service';
-import { VideoProcessingProcessor, EmailProcessor } from './jobs.processor';
+import { EmailProcessor } from './jobs.processor';
+import { VideoTranscodeProcessor } from './video.processor';
 import { JobQueue } from './interfaces/job.interface';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
+    StorageModule,
     BullModule.registerQueue(
       {
         name: JobQueue.VIDEO_PROCESSING,
@@ -37,7 +40,7 @@ import { JobQueue } from './interfaces/job.interface';
       },
     ),
   ],
-  providers: [JobsService, VideoProcessingProcessor, EmailProcessor],
+  providers: [JobsService, EmailProcessor, VideoTranscodeProcessor],
   exports: [JobsService],
 })
 export class JobsModule {}

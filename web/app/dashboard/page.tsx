@@ -138,17 +138,41 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="card p-6">
-          <h3 className="font-semibold text-lg">Esplora creator</h3>
-          <p className="text-sm text-zinc-400 mt-1">Scopri profili e iscriviti.</p>
-          <Link href="/" className="btn-ghost mt-4 inline-block text-sm">Vai a esplora</Link>
-        </div>
-        <div className="card p-6">
-          <h3 className="font-semibold text-lg">Il tuo feed</h3>
-          <p className="text-sm text-zinc-400 mt-1">Post degli abbonamenti attivi.</p>
-          <Link href="/feed" className="btn-ghost mt-4 inline-block text-sm">Apri feed</Link>
-        </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Link href="/dashboard/settings" className="card p-5 hover:border-pink-500/50 transition">
+          <div className="text-2xl mb-2">⚙️</div>
+          <h3 className="font-semibold">Impostazioni profilo</h3>
+          <p className="text-xs text-zinc-400 mt-1">Nome, email, avatar</p>
+        </Link>
+        <Link href="/dashboard/subscriptions" className="card p-5 hover:border-pink-500/50 transition">
+          <div className="text-2xl mb-2">💎</div>
+          <h3 className="font-semibold">Le mie iscrizioni</h3>
+          <p className="text-xs text-zinc-400 mt-1">Gestisci abbonamenti</p>
+        </Link>
+        <Link href="/feed" className="card p-5 hover:border-pink-500/50 transition">
+          <div className="text-2xl mb-2">📰</div>
+          <h3 className="font-semibold">Il tuo feed</h3>
+          <p className="text-xs text-zinc-400 mt-1">Post degli abbonamenti</p>
+        </Link>
+        {isCreator && (
+          <>
+            <Link href="/dashboard/creator-settings" className="card p-5 hover:border-pink-500/50 transition">
+              <div className="text-2xl mb-2">✨</div>
+              <h3 className="font-semibold">Profilo creator</h3>
+              <p className="text-xs text-zinc-400 mt-1">Bio, prezzo, banner</p>
+            </Link>
+            <Link href="/dashboard/earnings" className="card p-5 hover:border-pink-500/50 transition">
+              <div className="text-2xl mb-2">💰</div>
+              <h3 className="font-semibold">I miei guadagni</h3>
+              <p className="text-xs text-zinc-400 mt-1">Earnings e payout</p>
+            </Link>
+          </>
+        )}
+        <Link href="/" className="card p-5 hover:border-pink-500/50 transition">
+          <div className="text-2xl mb-2">🔍</div>
+          <h3 className="font-semibold">Esplora creator</h3>
+          <p className="text-xs text-zinc-400 mt-1">Scopri nuovi profili</p>
+        </Link>
       </div>
     </div>
   );

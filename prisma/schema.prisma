@@ -140,26 +140,50 @@ enum ReportStatus {
 }
 
 model User {
-  id              String          @id @default(uuid()) @db.Uuid
-  email           String          @unique
-  passwordHash    String          @map("password_hash")
-  displayName     String          @map("display_name")
-  avatarUrl       String?         @map("avatar_url")
-  status          UserStatus      @default(PENDING_EMAIL_VERIFICATION)
-  emailVerifiedAt DateTime?       @map("email_verified_at")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
-  roles           UserRole[]
-  refreshTokens   RefreshToken[]
-  sessions        Session[]
-  emailTokens     EmailVerificationToken[]
-  creatorProfile  CreatorProfile?
-  subscriptions   Subscription[]  @relation("FanSubscriptions")
-  payments        Payment[]       @relation("FanPayments")
-  postLikes       PostLike[]
-  comments        PostComment[]
-  reports         Report[]        @relation("ReporterReports")
-  auditLogs       AuditLog[]
+  id                 String                   @id @default(uuid()) @db.Uuid
+  email              String                   @unique
+  passwordHash       String                   @map("password_hash")
+  displayName        String                   @map("display_name")
+  avatarUrl          String?                  @map("avatar_url")
+  status             UserStatus               @default(PENDING_EMAIL_VERIFICATION)
+  emailVerifiedAt    DateTime?                @map("email_verified_at")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+  roles              UserRole[]
+  refreshTokens      RefreshToken[]
+  sessions           Session[]
+  emailTokens        EmailVerificationToken[]
+  creatorProfile     CreatorProfile?
+  subscriptions      Subscription[]           @relation("FanSubscriptions")
+  payments           Payment[]                @relation("FanPayments")
+  postLikes          PostLike[]
+  comments           PostComment[]
+  reports            Report[]                 @relation("ReporterReports")
+  auditLogs          AuditLog[]
+  sentMessages       Message[]                @relation("MessageSender")
+  fanConversations   Conversation[]           @relation("FanConversations")
+  messagePurchases   MessagePurchase[]
+  messageReads       MessageRead[]
+  messageReactions   MessageReaction[]
+  tipsSent           Tip[]                    @relation("TipsSent")
+  notifications      Notification[]           @relation("UserNotifications")
+  notificationsActed Notification[]           @relation("ActorNotifications")
+  following          Follow[]                 @relation("Follower")
+  followers          Follow[]                 @relation("Following")
+  blocking           Block[]                  @relation("Blocker")
+  blockedBy          Block[]                  @relation("Blocked")
+  storyViews         StoryView[]
+  storyReplies       StoryReply[]
+  promoRedemptions   PromoRedemption[]
+  wallet             Wallet?
+  walletTransactions WalletTransaction[]
+  referralCodes      ReferralCode[]           @relation("ReferralOwner")
+  referredBy         ReferralAttribution?     @relation("ReferredUser")
+  kycVerifications   KycVerification[]
+  liveViewers        LiveStreamViewer[]
+  pushSubscriptions  PushSubscription[]
+  devices            UserDevice[]
+  fanNotes           FanNote[]
 
   @@map("users")
 }
@@ -176,15 +200,15 @@ model UserRole {
 }
 
 model RefreshToken {
-  id          String    @id @default(uuid()) @db.Uuid
-  userId      String    @map("user_id") @db.Uuid
-  sessionId   String    @map("session_id") @db.Uuid
-  tokenHash   String    @map("token_hash")
-  expiresAt   DateTime  @map("expires_at")
-  revokedAt   DateTime? @map("revoked_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  session     Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  sessionId String    @map("session_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([sessionId])
@@ -193,16 +217,16 @@ model RefreshToken {
 }
 
 model Session {
-  id               String         @id @default(uuid()) @db.Uuid
-  userId           String         @map("user_id") @db.Uuid
-  userAgent        String?        @map("user_agent")
-  ipAddress        String?        @map("ip_address")
-  lastSeenAt       DateTime       @default(now()) @map("last_seen_at")
-  expiresAt        DateTime       @map("expires_at")
-  revokedAt        DateTime?      @map("revoked_at")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  refreshTokens    RefreshToken[]
+  id            String         @id @default(uuid()) @db.Uuid
+  userId        String         @map("user_id") @db.Uuid
+  userAgent     String?        @map("user_agent")
+  ipAddress     String?        @map("ip_address")
+  lastSeenAt    DateTime       @default(now()) @map("last_seen_at")
+  expiresAt     DateTime       @map("expires_at")
+  revokedAt     DateTime?      @map("revoked_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
 
   @@index([userId])
   @@index([expiresAt])
@@ -224,52 +248,65 @@ model EmailVerificationToken {
 }
 
 model CreatorProfile {
-  id                         String         @id @default(uuid()) @db.Uuid
-  userId                     String         @unique @map("user_id") @db.Uuid
-  username                   String         @unique
-  displayName                String         @map("display_name")
-  bio                        String?
-  bannerUrl                  String?        @map("banner_url")
-  subscriptionPriceCents     Int            @map("subscription_price_cents")
-  currency                   String         @default("eur")
-  status                     CreatorStatus  @default(PENDING_REVIEW)
-  stripeAccountId            String?        @unique @map("stripe_account_id")
-  stripeProductId            String?        @unique @map("stripe_product_id")
-  stripePriceId              String?        @unique @map("stripe_price_id")
-  stripeOnboardingComplete   Boolean        @default(false) @map("stripe_onboarding_complete")
-  payoutsEnabled             Boolean        @default(false) @map("payouts_enabled")
-  chargesEnabled             Boolean        @default(false) @map("charges_enabled")
-  createdAt                  DateTime       @default(now()) @map("created_at")
-  updatedAt                  DateTime       @updatedAt @map("updated_at")
-  user                       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  posts                      Post[]
-  media                      Media[]
-  subscriptions              Subscription[]
-  payments                   Payment[]
-  payouts                    Payout[]
-  earnings                   CreatorEarning[]
-  ledgerEntries              LedgerEntry[]
+  id                       String           @id @default(uuid()) @db.Uuid
+  userId                   String           @unique @map("user_id") @db.Uuid
+  username                 String           @unique
+  displayName              String           @map("display_name")
+  bio                      String?
+  bannerUrl                String?          @map("banner_url")
+  subscriptionPriceCents   Int              @map("subscription_price_cents")
+  currency                 String           @default("eur")
+  status                   CreatorStatus    @default(PENDING_REVIEW)
+  stripeAccountId          String?          @unique @map("stripe_account_id")
+  stripeProductId          String?          @unique @map("stripe_product_id")
+  stripePriceId            String?          @unique @map("stripe_price_id")
+  stripeOnboardingComplete Boolean          @default(false) @map("stripe_onboarding_complete")
+  payoutsEnabled           Boolean          @default(false) @map("payouts_enabled")
+  chargesEnabled           Boolean          @default(false) @map("charges_enabled")
+  createdAt                DateTime         @default(now()) @map("created_at")
+  updatedAt                DateTime         @updatedAt @map("updated_at")
+  user                     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts                    Post[]
+  media                    Media[]
+  subscriptions            Subscription[]
+  payments                 Payment[]
+  payouts                  Payout[]
+  earnings                 CreatorEarning[]
+  ledgerEntries            LedgerEntry[]
+  conversations            Conversation[]
+  tipsReceived             Tip[]            @relation("TipsReceived")
+  stories                  Story[]
+  bundles                  Bundle[]
+  promos                   Promo[]
+  creatorTags              CreatorTag[]
+  scheduledPosts           ScheduledPost[]
+  fanNotes                 FanNote[]
+  liveStreams              LiveStream[]
+  analyticsEvents          AnalyticsEvent[]
 
   @@map("creator_profiles")
 }
 
 model Post {
-  id          String         @id @default(uuid()) @db.Uuid
-  creatorId   String         @map("creator_id") @db.Uuid
-  title       String?
-  body        String?
-  visibility  PostVisibility @default(SUBSCRIBERS_ONLY)
-  priceCents  Int?           @map("price_cents")
-  currency    String?        @default("eur")
-  status      PostStatus     @default(DRAFT)
-  publishedAt DateTime?      @map("published_at")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
-  creator     CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  media       PostMedia[]
-  purchases   PostPurchase[]
-  likes       PostLike[]
-  comments    PostComment[]
+  id           String                   @id @default(uuid()) @db.Uuid
+  creatorId    String                   @map("creator_id") @db.Uuid
+  title        String?
+  body         String?
+  visibility   PostVisibility           @default(SUBSCRIBERS_ONLY)
+  priceCents   Int?                     @map("price_cents")
+  currency     String?                  @default("eur")
+  status       PostStatus               @default(DRAFT)
+  publishedAt  DateTime?                @map("published_at")
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  updatedAt    DateTime                 @updatedAt @map("updated_at")
+  creator      CreatorProfile           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  media        PostMedia[]
+  purchases    PostPurchase[]
+  likes        PostLike[]
+  comments     PostComment[]
+  tags         PostTag[]
+  tips         Tip[]                    @relation("PostTips")
+  searchVector Unsupported("tsvector")?
 
   @@index([creatorId, status, publishedAt])
   @@map("posts")
@@ -337,6 +374,8 @@ model Media {
   updatedAt          DateTime       @updatedAt @map("updated_at")
   creator            CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   posts              PostMedia[]
+  messageMedias      MessageMedia[]
+  stories            Story[]
 
   @@unique([bucket, objectKey])
   @@index([creatorId, status])
@@ -382,27 +421,29 @@ model Subscription {
 }
 
 model Payment {
-  id                    String          @id @default(uuid()) @db.Uuid
-  fanId                 String          @map("fan_id") @db.Uuid
-  creatorId             String          @map("creator_id") @db.Uuid
-  subscriptionId        String?         @map("subscription_id") @db.Uuid
-  stripePaymentIntentId String?         @unique @map("stripe_payment_intent_id")
-  stripeInvoiceId       String?         @unique @map("stripe_invoice_id")
-  stripeChargeId        String?         @unique @map("stripe_charge_id")
-  amountCents           Int             @map("amount_cents")
-  platformFeeCents      Int             @map("platform_fee_cents")
-  creatorNetCents       Int             @map("creator_net_cents")
+  id                    String           @id @default(uuid()) @db.Uuid
+  fanId                 String           @map("fan_id") @db.Uuid
+  creatorId             String           @map("creator_id") @db.Uuid
+  subscriptionId        String?          @map("subscription_id") @db.Uuid
+  stripePaymentIntentId String?          @unique @map("stripe_payment_intent_id")
+  stripeInvoiceId       String?          @unique @map("stripe_invoice_id")
+  stripeChargeId        String?          @unique @map("stripe_charge_id")
+  amountCents           Int              @map("amount_cents")
+  platformFeeCents      Int              @map("platform_fee_cents")
+  creatorNetCents       Int              @map("creator_net_cents")
   currency              String
   status                PaymentStatus
-  createdAt             DateTime        @default(now()) @map("created_at")
-  updatedAt             DateTime        @updatedAt @map("updated_at")
-  fan                   User            @relation("FanPayments", fields: [fanId], references: [id])
-  creator               CreatorProfile  @relation(fields: [creatorId], references: [id])
-  subscription          Subscription?   @relation(fields: [subscriptionId], references: [id])
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+  fan                   User             @relation("FanPayments", fields: [fanId], references: [id])
+  creator               CreatorProfile   @relation(fields: [creatorId], references: [id])
+  subscription          Subscription?    @relation(fields: [subscriptionId], references: [id])
   earnings              CreatorEarning[]
   refunds               Refund[]
   chargebacks           Chargeback[]
   ledgerEntries         LedgerEntry[]
+  messagePurchase       MessagePurchase?
+  tip                   Tip?
 
   @@index([fanId])
   @@index([creatorId])
@@ -411,17 +452,17 @@ model Payment {
 }
 
 model Payout {
-  id             String         @id @default(uuid()) @db.Uuid
-  creatorId      String         @map("creator_id") @db.Uuid
-  stripePayoutId String?        @unique @map("stripe_payout_id")
-  amountCents    Int            @map("amount_cents")
+  id             String           @id @default(uuid()) @db.Uuid
+  creatorId      String           @map("creator_id") @db.Uuid
+  stripePayoutId String?          @unique @map("stripe_payout_id")
+  amountCents    Int              @map("amount_cents")
   currency       String
   status         PayoutStatus
-  scheduledFor   DateTime?      @map("scheduled_for")
-  arrivalDate    DateTime?      @map("arrival_date")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
-  creator        CreatorProfile @relation(fields: [creatorId], references: [id])
+  scheduledFor   DateTime?        @map("scheduled_for")
+  arrivalDate    DateTime?        @map("arrival_date")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  creator        CreatorProfile   @relation(fields: [creatorId], references: [id])
   earnings       CreatorEarning[]
   ledgerEntries  LedgerEntry[]
 
@@ -430,21 +471,21 @@ model Payout {
 }
 
 model CreatorEarning {
-  id             String         @id @default(uuid()) @db.Uuid
-  creatorId      String         @map("creator_id") @db.Uuid
-  paymentId      String         @map("payment_id") @db.Uuid
-  payoutId       String?        @map("payout_id") @db.Uuid
-  grossCents     Int            @map("gross_cents")
-  platformFeeCents Int          @map("platform_fee_cents")
-  netCents       Int            @map("net_cents")
-  currency       String
-  status         EarningStatus  @default(PENDING)
-  availableAt    DateTime       @map("available_at")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
-  creator        CreatorProfile @relation(fields: [creatorId], references: [id])
-  payment        Payment        @relation(fields: [paymentId], references: [id])
-  payout         Payout?        @relation(fields: [payoutId], references: [id])
+  id               String         @id @default(uuid()) @db.Uuid
+  creatorId        String         @map("creator_id") @db.Uuid
+  paymentId        String         @map("payment_id") @db.Uuid
+  payoutId         String?        @map("payout_id") @db.Uuid
+  grossCents       Int            @map("gross_cents")
+  platformFeeCents Int            @map("platform_fee_cents")
+  netCents         Int            @map("net_cents")
+  currency         String
+  status           EarningStatus  @default(PENDING)
+  availableAt      DateTime       @map("available_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  creator          CreatorProfile @relation(fields: [creatorId], references: [id])
+  payment          Payment        @relation(fields: [paymentId], references: [id])
+  payout           Payout?        @relation(fields: [payoutId], references: [id])
 
   @@index([creatorId, status])
   @@index([availableAt])
@@ -492,17 +533,17 @@ model Refund {
 }
 
 model Chargeback {
-  id                String           @id @default(uuid()) @db.Uuid
-  paymentId         String           @map("payment_id") @db.Uuid
-  stripeDisputeId   String           @unique @map("stripe_dispute_id")
-  amountCents       Int              @map("amount_cents")
-  currency          String
-  reason            String?
-  status            ChargebackStatus
-  evidenceDueBy     DateTime?        @map("evidence_due_by")
-  createdAt         DateTime         @default(now()) @map("created_at")
-  updatedAt         DateTime         @updatedAt @map("updated_at")
-  payment           Payment          @relation(fields: [paymentId], references: [id])
+  id              String           @id @default(uuid()) @db.Uuid
+  paymentId       String           @map("payment_id") @db.Uuid
+  stripeDisputeId String           @unique @map("stripe_dispute_id")
+  amountCents     Int              @map("amount_cents")
+  currency        String
+  reason          String?
+  status          ChargebackStatus
+  evidenceDueBy   DateTime?        @map("evidence_due_by")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  payment         Payment          @relation(fields: [paymentId], references: [id])
 
   @@index([paymentId])
   @@index([status])
@@ -566,4 +607,672 @@ model AuditLog {
   @@index([actorId])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+// =====================================================================
+// CHAT / DM / PPV / TIP / NOTIFICATIONS / SOCIAL / STORIES / BUNDLES /
+// TAGS / WALLET / REFERRALS / KYC / SCHEDULER / LIVE / FAN CRM / PWA
+// =====================================================================
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  BLOCKED
+}
+
+enum MessageType {
+  TEXT
+  MEDIA
+  PPV
+  TIP
+  SYSTEM
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  DELETED
+}
+
+enum NotificationType {
+  NEW_MESSAGE
+  NEW_SUBSCRIBER
+  NEW_TIP
+  NEW_LIKE
+  NEW_COMMENT
+  NEW_POST
+  PPV_PURCHASED
+  SUBSCRIPTION_RENEWED
+  SUBSCRIPTION_CANCELED
+  KYC_APPROVED
+  KYC_REJECTED
+  PAYOUT_PAID
+  MENTION
+  STORY_REPLY
+  LIVE_STARTED
+  PROMO_AVAILABLE
+}
+
+enum StoryStatus {
+  ACTIVE
+  EXPIRED
+  REMOVED
+}
+
+enum KycStatus {
+  NOT_STARTED
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum KycProvider {
+  STRIPE_IDENTITY
+  PERSONA
+  VERIFF
+  SUMSUB
+  MANUAL
+}
+
+enum WalletTxType {
+  DEPOSIT
+  WITHDRAW
+  TIP_SENT
+  TIP_RECEIVED
+  PPV_PURCHASE
+  PPV_SALE
+  SUB_PURCHASE
+  SUB_RECEIVED
+  POST_PURCHASE
+  POST_SALE
+  REFUND
+  ADJUSTMENT
+  PAYOUT
+}
+
+enum WalletTxStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum ReferralStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum BundleStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum PromoType {
+  PERCENT_OFF
+  FREE_TRIAL
+  FIXED_AMOUNT
+}
+
+enum PromoStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum LiveStreamStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELED
+}
+
+enum ScheduledPostStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+  CANCELED
+}
+
+enum DmcaStatus {
+  RECEIVED
+  REVIEWING
+  REMOVED
+  REJECTED
+  COUNTERED
+}
+
+model Conversation {
+  id                 String             @id @default(uuid()) @db.Uuid
+  fanId              String             @map("fan_id") @db.Uuid
+  creatorId          String             @map("creator_id") @db.Uuid
+  status             ConversationStatus @default(ACTIVE)
+  lastMessageAt      DateTime?          @map("last_message_at")
+  lastMessagePreview String?            @map("last_message_preview")
+  fanUnreadCount     Int                @default(0) @map("fan_unread_count")
+  creatorUnreadCount Int                @default(0) @map("creator_unread_count")
+  fanMuted           Boolean            @default(false) @map("fan_muted")
+  creatorMuted       Boolean            @default(false) @map("creator_muted")
+  fanPinned          Boolean            @default(false) @map("fan_pinned")
+  creatorPinned      Boolean            @default(false) @map("creator_pinned")
+  fanArchivedAt      DateTime?          @map("fan_archived_at")
+  creatorArchivedAt  DateTime?          @map("creator_archived_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  fan                User               @relation("FanConversations", fields: [fanId], references: [id], onDelete: Cascade)
+  creator            CreatorProfile     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  messages           Message[]
+
+  @@unique([fanId, creatorId])
+  @@index([creatorId, lastMessageAt])
+  @@index([fanId, lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String            @id @default(uuid()) @db.Uuid
+  conversationId String            @map("conversation_id") @db.Uuid
+  senderId       String            @map("sender_id") @db.Uuid
+  type           MessageType       @default(TEXT)
+  body           String?
+  priceCents     Int?              @map("price_cents")
+  currency       String?           @default("eur")
+  expiresAt      DateTime?         @map("expires_at")
+  editedAt       DateTime?         @map("edited_at")
+  deletedAt      DateTime?         @map("deleted_at")
+  isVanishing    Boolean           @default(false) @map("is_vanishing")
+  replyToId      String?           @map("reply_to_id") @db.Uuid
+  createdAt      DateTime          @default(now()) @map("created_at")
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User              @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo        Message?          @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]         @relation("MessageReplies")
+  media          MessageMedia[]
+  purchases      MessagePurchase[]
+  reads          MessageRead[]
+  reactions      MessageReaction[]
+  tip            Tip?              @relation("MessageTip")
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model MessageMedia {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  mediaId   String   @map("media_id") @db.Uuid
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, mediaId])
+  @@map("message_media")
+}
+
+model MessagePurchase {
+  id               String   @id @default(uuid()) @db.Uuid
+  messageId        String   @map("message_id") @db.Uuid
+  buyerId          String   @map("buyer_id") @db.Uuid
+  paymentId        String?  @unique @map("payment_id") @db.Uuid
+  amountCents      Int      @map("amount_cents")
+  platformFeeCents Int      @map("platform_fee_cents")
+  creatorNetCents  Int      @map("creator_net_cents")
+  currency         String
+  createdAt        DateTime @default(now()) @map("created_at")
+  message          Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  buyer            User     @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  payment          Payment? @relation(fields: [paymentId], references: [id])
+
+  @@unique([messageId, buyerId])
+  @@index([buyerId])
+  @@map("message_purchases")
+}
+
+model MessageRead {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  readAt    DateTime @default(now()) @map("read_at")
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@map("message_reads")
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  emoji     String
+  createdAt DateTime @default(now()) @map("created_at")
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@map("message_reactions")
+}
+
+model Tip {
+  id               String         @id @default(uuid()) @db.Uuid
+  fanId            String         @map("fan_id") @db.Uuid
+  creatorId        String         @map("creator_id") @db.Uuid
+  postId           String?        @map("post_id") @db.Uuid
+  messageId        String?        @unique @map("message_id") @db.Uuid
+  liveStreamId     String?        @map("live_stream_id") @db.Uuid
+  paymentId        String?        @unique @map("payment_id") @db.Uuid
+  amountCents      Int            @map("amount_cents")
+  platformFeeCents Int            @map("platform_fee_cents")
+  creatorNetCents  Int            @map("creator_net_cents")
+  currency         String
+  note             String?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  fan              User           @relation("TipsSent", fields: [fanId], references: [id])
+  creator          CreatorProfile @relation("TipsReceived", fields: [creatorId], references: [id])
+  post             Post?          @relation("PostTips", fields: [postId], references: [id], onDelete: SetNull)
+  message          Message?       @relation("MessageTip", fields: [messageId], references: [id], onDelete: SetNull)
+  liveStream       LiveStream?    @relation(fields: [liveStreamId], references: [id], onDelete: SetNull)
+  payment          Payment?       @relation(fields: [paymentId], references: [id])
+
+  @@index([fanId])
+  @@index([creatorId, createdAt])
+  @@index([postId])
+  @@index([liveStreamId])
+  @@map("tips")
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  actorId   String?          @map("actor_id") @db.Uuid
+  type      NotificationType
+  title     String
+  body      String?
+  data      Json?
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User?            @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt, createdAt])
+  @@index([type])
+  @@map("notifications")
+}
+
+model Follow {
+  id          String   @id @default(uuid()) @db.Uuid
+  followerId  String   @map("follower_id") @db.Uuid
+  followingId String   @map("following_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model Block {
+  id        String   @id @default(uuid()) @db.Uuid
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("blocks")
+}
+
+model Story {
+  id        String         @id @default(uuid()) @db.Uuid
+  creatorId String         @map("creator_id") @db.Uuid
+  mediaId   String?        @map("media_id") @db.Uuid
+  text      String?
+  status    StoryStatus    @default(ACTIVE)
+  expiresAt DateTime       @map("expires_at")
+  viewCount Int            @default(0) @map("view_count")
+  createdAt DateTime       @default(now()) @map("created_at")
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  media     Media?         @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  views     StoryView[]
+  replies   StoryReply[]
+
+  @@index([creatorId, expiresAt])
+  @@map("stories")
+}
+
+model StoryView {
+  id       String   @id @default(uuid()) @db.Uuid
+  storyId  String   @map("story_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  viewedAt DateTime @default(now()) @map("viewed_at")
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@map("story_views")
+}
+
+model StoryReply {
+  id        String   @id @default(uuid()) @db.Uuid
+  storyId   String   @map("story_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([storyId])
+  @@map("story_replies")
+}
+
+model Bundle {
+  id              String         @id @default(uuid()) @db.Uuid
+  creatorId       String         @map("creator_id") @db.Uuid
+  monthsCount     Int            @map("months_count")
+  discountPercent Int            @map("discount_percent")
+  priceCents      Int            @map("price_cents")
+  currency        String         @default("eur")
+  status          BundleStatus   @default(ACTIVE)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  creator         CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, monthsCount])
+  @@map("bundles")
+}
+
+model Promo {
+  id              String            @id @default(uuid()) @db.Uuid
+  code            String            @unique
+  creatorId       String?           @map("creator_id") @db.Uuid
+  type            PromoType
+  value           Int
+  maxRedemptions  Int?              @map("max_redemptions")
+  redemptionCount Int               @default(0) @map("redemption_count")
+  expiresAt       DateTime?         @map("expires_at")
+  status          PromoStatus       @default(ACTIVE)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  creator         CreatorProfile?   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  redemptions     PromoRedemption[]
+
+  @@index([creatorId])
+  @@map("promos")
+}
+
+model PromoRedemption {
+  id        String   @id @default(uuid()) @db.Uuid
+  promoId   String   @map("promo_id") @db.Uuid
+  fanId     String   @map("fan_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  promo     Promo    @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  fan       User     @relation(fields: [fanId], references: [id], onDelete: Cascade)
+
+  @@unique([promoId, fanId])
+  @@map("promo_redemptions")
+}
+
+model Tag {
+  id        String       @id @default(uuid()) @db.Uuid
+  slug      String       @unique
+  name      String
+  isAdult   Boolean      @default(false) @map("is_adult")
+  createdAt DateTime     @default(now()) @map("created_at")
+  creators  CreatorTag[]
+  posts     PostTag[]
+
+  @@map("tags")
+}
+
+model CreatorTag {
+  creatorId String         @map("creator_id") @db.Uuid
+  tagId     String         @map("tag_id") @db.Uuid
+  creator   CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  tag       Tag            @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([creatorId, tagId])
+  @@map("creator_tags")
+}
+
+model PostTag {
+  postId String @map("post_id") @db.Uuid
+  tagId  String @map("tag_id") @db.Uuid
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+  @@map("post_tags")
+}
+
+model Wallet {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @unique @map("user_id") @db.Uuid
+  currency     String   @default("eur")
+  balanceCents Int      @default(0) @map("balance_cents")
+  pendingCents Int      @default(0) @map("pending_cents")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id                String         @id @default(uuid()) @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  type              WalletTxType
+  status            WalletTxStatus @default(COMPLETED)
+  amountCents       Int            @map("amount_cents")
+  currency          String
+  balanceAfterCents Int            @map("balance_after_cents")
+  refType           String?        @map("ref_type")
+  refId             String?        @map("ref_id")
+  description       String?
+  metadata          Json?
+  createdAt         DateTime       @default(now()) @map("created_at")
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([type])
+  @@map("wallet_transactions")
+}
+
+model ReferralCode {
+  id                String                @id @default(uuid()) @db.Uuid
+  ownerId           String                @map("owner_id") @db.Uuid
+  code              String                @unique
+  commissionPercent Int                   @default(5) @map("commission_percent")
+  expiresAt         DateTime?             @map("expires_at")
+  status            ReferralStatus        @default(ACTIVE)
+  redemptionCount   Int                   @default(0) @map("redemption_count")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  owner             User                  @relation("ReferralOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  attributions      ReferralAttribution[]
+
+  @@index([ownerId])
+  @@map("referral_codes")
+}
+
+model ReferralAttribution {
+  id                  String       @id @default(uuid()) @db.Uuid
+  referralCodeId      String       @map("referral_code_id") @db.Uuid
+  referredUserId      String       @unique @map("referred_user_id") @db.Uuid
+  totalRevenueCents   Int          @default(0) @map("total_revenue_cents")
+  commissionPaidCents Int          @default(0) @map("commission_paid_cents")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+  referralCode        ReferralCode @relation(fields: [referralCodeId], references: [id], onDelete: Cascade)
+  referredUser        User         @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
+
+  @@index([referralCodeId])
+  @@map("referral_attributions")
+}
+
+model KycVerification {
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  provider       KycProvider @default(MANUAL)
+  status         KycStatus   @default(NOT_STARTED)
+  providerRef    String?     @map("provider_ref")
+  dob            DateTime?   @db.Date
+  country        String?
+  fullName       String?     @map("full_name")
+  idType         String?     @map("id_type")
+  idImages       Json?       @map("id_images")
+  selfieKey      String?     @map("selfie_key")
+  decisionReason String?     @map("decision_reason")
+  isAgeVerified  Boolean     @default(false) @map("is_age_verified")
+  isIdVerified   Boolean     @default(false) @map("is_id_verified")
+  completedAt    DateTime?   @map("completed_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("kyc_verifications")
+}
+
+model ScheduledPost {
+  id              String              @id @default(uuid()) @db.Uuid
+  creatorId       String              @map("creator_id") @db.Uuid
+  payload         Json
+  scheduledFor    DateTime            @map("scheduled_for")
+  status          ScheduledPostStatus @default(PENDING)
+  publishedPostId String?             @map("published_post_id") @db.Uuid
+  lastError       String?             @map("last_error")
+  attempts        Int                 @default(0)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  creator         CreatorProfile      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledFor, status])
+  @@map("scheduled_posts")
+}
+
+model FanNote {
+  id         String         @id @default(uuid()) @db.Uuid
+  creatorId  String         @map("creator_id") @db.Uuid
+  fanId      String         @map("fan_id") @db.Uuid
+  note       String?
+  tags       String[]
+  colorLabel String?        @map("color_label")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  creator    CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  fan        User           @relation(fields: [fanId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, fanId])
+  @@map("fan_notes")
+}
+
+model LiveStream {
+  id           String             @id @default(uuid()) @db.Uuid
+  creatorId    String             @map("creator_id") @db.Uuid
+  title        String
+  description  String?
+  status       LiveStreamStatus   @default(SCHEDULED)
+  isPrivate    Boolean            @default(false) @map("is_private")
+  priceCents   Int?               @map("price_cents")
+  currency     String?            @default("eur")
+  scheduledFor DateTime?          @map("scheduled_for")
+  startedAt    DateTime?          @map("started_at")
+  endedAt      DateTime?          @map("ended_at")
+  viewerCount  Int                @default(0) @map("viewer_count")
+  peakViewers  Int                @default(0) @map("peak_viewers")
+  roomName     String             @unique @map("room_name")
+  ingressId    String?            @map("ingress_id")
+  recordingUrl String?            @map("recording_url")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  creator      CreatorProfile     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  viewers      LiveStreamViewer[]
+  tips         Tip[]
+
+  @@index([creatorId, status])
+  @@map("live_streams")
+}
+
+model LiveStreamViewer {
+  id             String     @id @default(uuid()) @db.Uuid
+  streamId       String     @map("stream_id") @db.Uuid
+  userId         String     @map("user_id") @db.Uuid
+  joinedAt       DateTime   @default(now()) @map("joined_at")
+  leftAt         DateTime?  @map("left_at")
+  totalTipsCents Int        @default(0) @map("total_tips_cents")
+  stream         LiveStream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([streamId, userId])
+  @@map("live_stream_viewers")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+model UserDevice {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  platform   String
+  pushToken  String?  @unique @map("push_token")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_devices")
+}
+
+model AnalyticsEvent {
+  id          String          @id @default(uuid()) @db.Uuid
+  creatorId   String?         @map("creator_id") @db.Uuid
+  userId      String?         @map("user_id") @db.Uuid
+  event       String
+  entityType  String?         @map("entity_type")
+  entityId    String?         @map("entity_id")
+  amountCents Int?            @map("amount_cents")
+  currency    String?
+  metadata    Json?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  creator     CreatorProfile? @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+
+  @@index([creatorId, event, createdAt])
+  @@index([event, createdAt])
+  @@map("analytics_events")
+}
+
+model DmcaTakedown {
+  id            String     @id @default(uuid()) @db.Uuid
+  reporterEmail String     @map("reporter_email")
+  reporterName  String?    @map("reporter_name")
+  externalUrls  String[]   @map("external_urls")
+  evidenceUrl   String?    @map("evidence_url")
+  description   String
+  targetType    String?    @map("target_type")
+  targetId      String?    @map("target_id")
+  status        DmcaStatus @default(RECEIVED)
+  resolvedAt    DateTime?  @map("resolved_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("dmca_takedowns")
 }

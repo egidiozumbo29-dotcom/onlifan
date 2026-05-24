@@ -3,6 +3,7 @@ import { CreatorStatus, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { ApplyCreatorDto } from './dto/apply-creator.dto';
+import { UpdateCreatorDto } from './dto/update-creator.dto';
 
 @Injectable()
 export class CreatorsService {
@@ -39,6 +40,22 @@ export class CreatorsService {
           status: CreatorStatus.PENDING_REVIEW,
         },
       });
+    });
+  }
+
+  async updateMine(userId: string, dto: UpdateCreatorDto) {
+    const profile = await this.prisma.creatorProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      throw new NotFoundException('Profilo creator non trovato');
+    }
+    return this.prisma.creatorProfile.update({
+      where: { userId },
+      data: {
+        displayName: dto.displayName ?? undefined,
+        bio: dto.bio ?? undefined,
+        bannerUrl: dto.bannerUrl ?? undefined,
+        subscriptionPriceCents: dto.subscriptionPriceCents ?? undefined,
+      },
     });
   }
 

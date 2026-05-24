@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { CreatorCard, type CreatorCardProps } from '@/components/CreatorCard';
+import { type CreatorCardProps } from '@/components/CreatorCard';
+import { CreatorSearch } from '@/components/CreatorSearch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -91,11 +92,7 @@ export default async function Home() {
             </p>
           </div>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {showCreators.map((c) => (
-            <CreatorCard key={c.username} {...c} />
-          ))}
-        </div>
+        <CreatorSearch creators={showCreators} />
       </section>
 
       {/* CTA */}

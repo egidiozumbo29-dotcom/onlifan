@@ -208,6 +208,28 @@ export class StorageService implements OnModuleInit {
     }
   }
 
+  async putBuffer(key: string, body: Buffer, contentType: string): Promise<void> {
+    await this.s3Client.send(
+      new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }),
+    );
+  }
+
+  async getBuffer(key: string): Promise<Buffer> {
+    const res = await this.s3Client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    const stream = res.Body as NodeJS.ReadableStream;
+    const chunks: Buffer[] = [];
+    for await (const c of stream) chunks.push(c as Buffer);
+    return Buffer.concat(chunks);
+  }
+
+  buildProcessedKey(creatorId: string, mediaId: string, filename: string): string {
+    return this.buildKey(creatorId, mediaId, filename, StorageFileType.PROCESSED);
+  }
+
+  buildThumbnailKey(creatorId: string, mediaId: string, filename: string): string {
+    return this.buildKey(creatorId, mediaId, filename, StorageFileType.THUMBNAIL);
+  }
+
   async fileExists(key: string): Promise<boolean> {
     try {
       await this.getFileMetadata(key);

@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ApplyCreatorDto } from './dto/apply-creator.dto';
+import { UpdateCreatorDto } from './dto/update-creator.dto';
 import { CreatorsService } from './creators.service';
 
 @Controller('creators')
@@ -18,6 +19,12 @@ export class CreatorsController {
   @Get('me')
   me(@CurrentUser() user: { id: string }) {
     return this.creatorsService.findMine(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  updateMe(@CurrentUser() user: { id: string }, @Body() dto: UpdateCreatorDto) {
+    return this.creatorsService.updateMine(user.id, dto);
   }
 
   @UseGuards(JwtAuthGuard)
