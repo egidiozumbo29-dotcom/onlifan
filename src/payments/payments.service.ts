@@ -17,6 +17,7 @@ import {
 } from '@prisma/client';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
+import { OwnerHubService } from '../owner-hub/owner-hub.service';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import { CreateSubscriptionCheckoutDto } from './dto/create-subscription-checkout.dto';
 import { StripeService } from './stripe.service';
@@ -27,6 +28,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly stripe: StripeService,
+    private readonly ownerHub: OwnerHubService,
   ) {}
 
   async createConnectOnboardingLink(userId: string) {
@@ -200,15 +202,28 @@ export class PaymentsService {
       _sum: { netCents: true },
     });
 
+    const batches = availableEarnings.map((earning) => ({
+      creatorId: earning.creatorId,
+      currency: earning.currency,
+      amountCents: earning._sum.netCents ?? 0,
+      status: PayoutStatus.SCHEDULED,
+    }));
+
+    batches.forEach((batch) => {
+      this.ownerHub.send({
+        externalId: `payout_requested_creator_${batch.creatorId}_${Date.now()}`,
+        type: 'PAYOUT_REQUESTED',
+        occurredAt: new Date().toISOString(),
+        userId: batch.creatorId,
+        amountEur: batch.amountCents / 100,
+        currency: batch.currency.toUpperCase(),
+      });
+    });
+
     return {
       message:
         'Payout scheduling simulato. In produzione crea Stripe transfers/payouts e aggiorna earnings.',
-      batches: availableEarnings.map((earning) => ({
-        creatorId: earning.creatorId,
-        currency: earning.currency,
-        amountCents: earning._sum.netCents ?? 0,
-        status: PayoutStatus.SCHEDULED,
-      })),
+      batches,
     };
   }
 
@@ -278,7 +293,7 @@ export class PaymentsService {
     const periodEnd = new Date();
     periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-    await this.prisma.subscription.upsert({
+    const sub = await this.prisma.subscription.upsert({
       where: { fanId_creatorId: { fanId, creatorId } },
       update: {
         stripeSubscriptionId,
@@ -298,6 +313,13 @@ export class PaymentsService {
         currentPeriodStart: new Date(),
         currentPeriodEnd: periodEnd,
       },
+    });
+
+    this.ownerHub.send({
+      externalId: `stream_access_sub_${sub.id}`,
+      type: 'STREAM_ACCESS',
+      occurredAt: new Date().toISOString(),
+      userId: fanId,
     });
   }
 
@@ -389,6 +411,24 @@ export class PaymentsService {
           },
         ],
       });
+
+      this.ownerHub.send([
+        {
+          externalId: `stream_access_pay_${payment.id}`,
+          type: 'STREAM_ACCESS',
+          occurredAt: payment.createdAt.toISOString(),
+          userId: input.fanId,
+          amountEur: input.amountCents / 100,
+          currency: input.currency.toUpperCase(),
+        },
+        {
+          externalId: `owner_revenue_pay_${payment.id}`,
+          type: 'OWNER_REVENUE',
+          occurredAt: payment.createdAt.toISOString(),
+          amountEur: platformFeeCents / 100,
+          currency: input.currency.toUpperCase(),
+        },
+      ]);
 
       return payment;
     });

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OwnerHubService } from '../owner-hub/owner-hub.service';
 import { CreateTipDto } from './dto/create-tip.dto';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class TipsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly ownerHub: OwnerHubService,
   ) {}
 
   async create(fanId: string, dto: CreateTipDto) {
@@ -45,6 +47,26 @@ export class TipsService {
       body: `Hai ricevuto ${(dto.amountCents / 100).toFixed(2)} ${creator.currency.toUpperCase()}${dto.note ? ': ' + dto.note : ''}`,
       data: { tipId: tip.id, amountCents: dto.amountCents },
     });
+
+    const amountEur = tip.amountCents / 100;
+    const platformFeeEur = tip.platformFeeCents / 100;
+    this.ownerHub.send([
+      {
+        externalId: `tip_${tip.id}`,
+        type: 'TIP',
+        occurredAt: tip.createdAt.toISOString(),
+        userId: fanId,
+        amountEur,
+        currency: tip.currency.toUpperCase(),
+      },
+      {
+        externalId: `owner_revenue_tip_${tip.id}`,
+        type: 'OWNER_REVENUE',
+        occurredAt: tip.createdAt.toISOString(),
+        amountEur: platformFeeEur,
+        currency: tip.currency.toUpperCase(),
+      },
+    ]);
 
     return tip;
   }

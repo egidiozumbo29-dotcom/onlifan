@@ -5,6 +5,7 @@ import { AccessToken } from 'livekit-server-sdk';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OwnerHubService } from '../owner-hub/owner-hub.service';
 
 export interface CreateStreamDto {
   title: string;
@@ -22,6 +23,7 @@ export class LiveService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly ownerHub: OwnerHubService,
   ) {}
 
   async create(userId: string, dto: CreateStreamDto) {
@@ -124,6 +126,17 @@ export class LiveService {
       update: { joinedAt: new Date(), leftAt: null },
       create: { streamId, userId },
     });
+
+    // Notify Owner Hub: user accessed a live stream
+    if (stream.priceCents) {
+      this.ownerHub.send({
+        externalId: `stream_access_live_${streamId}_${userId}`,
+        type: 'STREAM_ACCESS',
+        occurredAt: new Date().toISOString(),
+        userId,
+        amountEur: stream.priceCents / 100,
+      });
+    }
 
     return { token: await token.toJwt(), url: livekitUrl, roomName: stream.roomName, configured: true };
   }

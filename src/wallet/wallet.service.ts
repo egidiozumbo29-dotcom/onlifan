@@ -1,10 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { WalletTxStatus, WalletTxType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { OwnerHubService } from '../owner-hub/owner-hub.service';
 
 @Injectable()
 export class WalletService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ownerHub: OwnerHubService,
+  ) {}
 
   async getOrCreate(userId: string, currency = 'eur') {
     return this.prisma.wallet.upsert({
@@ -109,5 +113,35 @@ export class WalletService {
       amountCents,
       checkoutUrl: null,
     };
+  }
+
+  /**
+   * Emette PAYOUT_REQUESTED verso Owner Hub.
+   * Chiamare dopo aver creato il record di payout nel DB.
+   */
+  notifyPayoutRequested(userId: string, payoutId: string, amountCents: number, currency: string) {
+    this.ownerHub.send({
+      externalId: `payout_requested_${payoutId}`,
+      type: 'PAYOUT_REQUESTED',
+      occurredAt: new Date().toISOString(),
+      userId,
+      amountEur: amountCents / 100,
+      currency: currency.toUpperCase(),
+    });
+  }
+
+  /**
+   * Emette PAYOUT_PAID verso Owner Hub.
+   * Chiamare dopo aver confermato il pagamento del payout.
+   */
+  notifyPayoutPaid(userId: string, payoutId: string, amountCents: number, currency: string) {
+    this.ownerHub.send({
+      externalId: `payout_paid_${payoutId}`,
+      type: 'PAYOUT_PAID',
+      occurredAt: new Date().toISOString(),
+      userId,
+      amountEur: amountCents / 100,
+      currency: currency.toUpperCase(),
+    });
   }
 }

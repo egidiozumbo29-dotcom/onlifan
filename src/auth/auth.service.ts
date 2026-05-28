@@ -11,6 +11,7 @@ import * as argon2 from 'argon2';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { OwnerHubService } from '../owner-hub/owner-hub.service';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -24,6 +25,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly redis: RedisService,
+    private readonly ownerHub: OwnerHubService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -48,6 +50,14 @@ export class AuthService {
     });
 
     const verificationToken = await this.createEmailVerificationToken(user.id);
+
+    this.ownerHub.send({
+      externalId: `user_signup_${user.id}`,
+      type: 'USER_SIGNUP',
+      occurredAt: user.createdAt.toISOString(),
+      userId: user.id,
+      username: user.email,
+    });
 
     return {
       userId: user.id,
@@ -86,6 +96,14 @@ export class AuthService {
     }
 
     await this.clearFailedLogin(dto.email);
+
+    this.ownerHub.send({
+      externalId: `user_login_${user.id}_${Date.now()}`,
+      type: 'USER_LOGIN',
+      occurredAt: new Date().toISOString(),
+      userId: user.id,
+      username: user.email,
+    });
 
     return this.createAuthResponse(
       user.id,
