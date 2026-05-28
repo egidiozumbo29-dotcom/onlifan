@@ -11,7 +11,7 @@
     "start:prod": "node dist/main.js",
     "build": "nest build",
     "render:build": "npm ci --include=dev && npx prisma generate && npx prisma migrate deploy && npx nest build",
-    "render:start": "node dist/main.js",
+    "render:start": "node /opt/render/project/src/dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\"",
