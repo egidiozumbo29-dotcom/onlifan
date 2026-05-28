@@ -11,7 +11,7 @@
     "start:prod": "node dist/main.js",
     "build": "nest build",
     "render:build": "npm ci --include=dev && DATABASE_URL=postgresql://x:x@localhost/x npx prisma generate && npx nest build",
-    "render:start": "npx prisma migrate deploy && node /opt/render/project/src/dist/main.js",
+    "render:start": "node /opt/render/project/src/render-start.js",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\"",
