@@ -16,7 +16,7 @@ type CreatorListItem = {
 
 async function getCreators(): Promise<CreatorListItem[]> {
   try {
-    const res = await fetch(`${API_URL}/creators`, { cache: 'no-store' });
+    const res = await fetch(`${API_URL}/creators`, { cache: 'no-store', signal: AbortSignal.timeout(3000) });
     if (!res.ok) return [];
     const json = await res.json();
     return (json.data ?? []) as CreatorListItem[];
