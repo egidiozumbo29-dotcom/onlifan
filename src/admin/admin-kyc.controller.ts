@@ -1,107 +1,55 @@
-import { Controller, Get, Post, Body, Param, Patch, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('admin/kyc')
-@UseGuards(JwtAuthGuard)
 export class AdminKycController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
   @Get('pending')
   async getPendingKyc() {
-    const pendingKyc = await this.prisma.kycVerification.findMany({
+    const kycs = await this.prisma.kycVerification.findMany({
       where: { status: 'PENDING' },
-      include: {
-        creator: {
-          include: {
-            user: {
-              select: { email: true, displayName: true },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+      include: { user: true },
+      orderBy: { createdAt: 'asc' }
     });
 
-    return {
-      pendingKyc: pendingKyc.map(k => ({
-        id: k.id,
-        creatorId: k.creatorId,
-        creatorName: k.creator.user.displayName,
-        creatorEmail: k.creator.user.email,
-        provider: k.provider,
-        status: k.status,
-        submittedAt: k.createdAt,
-      })),
-    };
-  }
-
-  @Get(':id')
-  async getKycDetails(@Param('id') id: string) {
-    const kyc = await this.prisma.kycVerification.findUnique({
-      where: { id },
-      include: {
-        creator: {
-          include: {
-            user: {
-              select: { email: true, displayName: true },
-            },
-          },
-        },
-      },
-    });
-
-    if (!kyc) {
-      throw new Error('KYC verification not found');
-    }
-
-    return {
-      id: kyc.id,
-      creatorId: kycId,
-      creatorName: kyc.creator.user.displayName,
-      creatorEmail: kyc.creator.user.email,
+    return kycs.map(k => ({
+      id: k.id,
+      userName: k.user?.displayName || 'Unknown',
+      userEmail: k.user?.email || 'Unknown',
       provider: k.provider,
       status: k.status,
-      externalId: k.externalId,
-      submittedAt: k.createdAt,
-      reviewedAt: k.reviewedAt,
-      metadata: k.metadata,
-    };
+      submittedAt: k.createdAt
+    }));
   }
 
-  @Patch(':id/approve')
+  @Post(':id/approve')
   async approveKyc(@Param('id') id: string) {
     const kyc = await this.prisma.kycVerification.update({
       where: { id },
-      data: {
-        status: 'APPROVED',
-        reviewedAt: new Date(),
-      },
+      data: { status: 'APPROVED' },
+      include: { user: true }
     });
 
-    // Aggiorna anche lo stato del creator
-    await this.prisma.creatorProfile.update({
-      where: { id: kyc.creatorId },
-      data: { kycVerified: true },
-    });
-
-    return { success: true, kycId: kyc.id, status: 'APPROVED' };
+    return {
+      id: kyc.id,
+      status: kyc.status,
+      userName: kyc.user?.displayName,
+      userEmail: kyc.user?.email
+    };
   }
 
-  @Patch(':id/reject')
+  @Post(':id/reject')
   async rejectKyc(@Param('id') id: string, @Body() body: { reason: string }) {
     const kyc = await this.prisma.kycVerification.update({
       where: { id },
-      data: {
-        status: 'REJECTED',
-        reviewedAt: new Date(),
-        metadata: {
-          ...kyc.metadata,
-          rejectionReason: body.reason,
-        },
-      },
+      data: { status: 'REJECTED' }
     });
 
-    return { success: true, kycId: kyc.id, status: 'REJECTED', reason: body.reason };
+    return {
+      id: kyc.id,
+      status: kyc.status,
+      reason: body.reason
+    };
   }
 }

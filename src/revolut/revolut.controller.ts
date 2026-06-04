@@ -31,12 +31,12 @@ export class RevolutController {
 
       // Cerca il pagamento nel database
       const payment = await this.prisma.payment.findFirst({
-        where: { stripePaymentId: orderId },
+        where: { id: orderId },
       });
 
-      if (payment && payment.userId) {
+      if (payment && payment.fanId) {
         const user = await this.prisma.user.findUnique({
-          where: { id: payment.userId },
+          where: { id: payment.fanId },
         });
 
         if (user) {

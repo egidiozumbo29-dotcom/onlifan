@@ -44,8 +44,9 @@ export class InvoicingService {
       // Per ora ritorna l'URL della fattura (da implementare con PDFKit o simili)
       return invoiceNumber;
     } catch (error) {
-      this.logger.error(`Failed to generate invoice: ${error.message}`);
-      throw new Error('Failed to generate invoice');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to generate invoice: ${errorMessage}`);
+      throw error;
     }
   }
 
