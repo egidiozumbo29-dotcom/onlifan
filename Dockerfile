@@ -18,4 +18,4 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY package*.json ./
 EXPOSE 4000
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "echo '=== ENV VARS ===' && echo NODE_ENV=$NODE_ENV && echo PORT=$PORT && echo DATABASE_URL=${DATABASE_URL:+SET} && echo REDIS_URL=${REDIS_URL:+SET} && echo '=== STARTING ===' && node dist/main.js 2>&1"]
