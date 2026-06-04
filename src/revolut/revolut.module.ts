@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { RevolutService } from './revolut.service';
 import { RevolutController } from './revolut.controller';
-import { InvoicingModule } from '../invoicing/invoicing.module';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [InvoicingModule, PrismaModule],
+  imports: [PrismaModule],
   controllers: [RevolutController],
   providers: [RevolutService],
   exports: [RevolutService],

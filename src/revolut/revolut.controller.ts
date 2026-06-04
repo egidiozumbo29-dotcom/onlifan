@@ -1,6 +1,5 @@
 import { Controller, Post, Body, Get, Query, UseGuards } from '@nestjs/common';
 import { RevolutService, CreatePaymentOrderDto } from './revolut.service';
-import { InvoicingService } from '../invoicing/invoicing.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -9,7 +8,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class RevolutController {
   constructor(
     private readonly revolut: RevolutService,
-    private readonly invoicing: InvoicingService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -42,19 +40,12 @@ export class RevolutController {
         });
 
         if (user) {
-          await this.invoicing.generateInvoice({
-            paymentId: payment.id,
-            userId: user.id,
-            userEmail: user.email,
-            amount: order.amount / 100,
-            currency: order.currency,
-            description: order.description,
-            date: new Date(order.created_at),
-          });
+          // TODO: Implementare generazione fattura quando InvoicingModule è riattivato
+          console.log(`Invoice generation for payment ${payment.id} - disabled temporarily`);
         }
       }
 
-      return { success: true, message: 'Payment confirmed and invoice generated' };
+      return { success: true, message: 'Payment confirmed' };
     }
 
     return { success: false, message: 'Payment not confirmed yet' };

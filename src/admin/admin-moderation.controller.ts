@@ -7,54 +7,45 @@ export class AdminModerationController {
 
   @Get('reports')
   async getReports(@Query('status') status?: string) {
-    const reports = await this.prisma.contentReport.findMany({
+    const reports = await this.prisma.report.findMany({
       where: status ? { status: status as any } : undefined,
       include: {
-        post: {
-          include: { creator: { include: { user: true } } }
+        reporter: {
+          select: { displayName: true, email: true },
         },
-        reporter: true
       },
       orderBy: { createdAt: 'desc' }
     });
 
     return reports.map(r => ({
       id: r.id,
-      postId: r.postId,
-      content: r.post?.body?.substring(0, 200) || '',
-      creatorName: r.post?.creator?.user?.displayName || 'Unknown',
-      creatorEmail: r.post?.creator?.user?.email || 'Unknown',
-      reporterEmail: r.reporter?.email || 'Unknown',
+      reporterName: r.reporter.displayName,
+      reporterEmail: r.reporter.email,
+      targetType: r.targetType,
+      targetId: r.targetId,
       reason: r.reason,
       status: r.status,
       createdAt: r.createdAt
     }));
   }
 
-  @Post(':id/approve')
-  async approveReport(@Param('id') id: string) {
-    const report = await this.prisma.contentReport.update({
+  @Post(':id/resolve')
+  async resolveReport(@Param('id') id: string) {
+    await this.prisma.report.update({
       where: { id },
       data: { status: 'RESOLVED' }
     });
 
-    if (report.postId) {
-      await this.prisma.post.update({
-        where: { id: report.postId },
-        data: { status: 'PUBLISHED' }
-      });
-    }
-
-    return { success: true, message: 'Report approved' };
+    return { success: true, message: 'Report resolved' };
   }
 
-  @Post(':id/reject')
-  async rejectReport(@Param('id') id: string, @Body() body: { reason: string }) {
-    await this.prisma.contentReport.update({
+  @Post(':id/dismiss')
+  async dismissReport(@Param('id') id: string) {
+    await this.prisma.report.update({
       where: { id },
-      data: { status: 'DISMISSED' }
+      data: { status: 'CLOSED' }
     });
 
-    return { success: true, message: 'Report rejected' };
+    return { success: true, message: 'Report dismissed' };
   }
 }
