@@ -7,8 +7,8 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate
-RUN npm run build
+RUN DATABASE_URL="postgresql://x:x@localhost/x" npx prisma generate
+RUN DATABASE_URL="postgresql://x:x@localhost/x" npm run build
 RUN ls -la dist/ && echo "=== DIST CONTENTS ===" && ls -la dist/
 
 FROM node:22-alpine AS runner
