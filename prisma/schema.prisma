@@ -1276,3 +1276,30 @@ model DmcaTakedown {
   @@index([status])
   @@map("dmca_takedowns")
 }
+
+model Invoice {
+  id             String      @id @default(uuid()) @db.Uuid
+  invoiceNumber  String      @unique @map("invoice_number")
+  paymentId      String      @map("payment_id") @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  userEmail      String      @map("user_email")
+  amount         Float
+  currency       String
+  description    String
+  issuedAt       DateTime    @map("issued_at")
+  status         InvoiceStatus @default(PAID)
+  pdfUrl         String?     @map("pdf_url")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  @@index([invoiceNumber])
+  @@index([paymentId])
+  @@index([userId])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PAID
+  CANCELLED
+}

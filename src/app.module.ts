@@ -35,6 +35,7 @@ import { AIModule } from './ai/ai.module';
 import { PaymentsAdapterModule } from './payments-adapters/payments-adapter.module';
 import { OwnerHubModule } from './owner-hub/owner-hub.module';
 import { RevolutModule } from './revolut/revolut.module';
+import { InvoicingModule } from './invoicing/invoicing.module';
 
 function parseRedisConfig() {
   const url = process.env.REDIS_URL;
@@ -71,6 +72,7 @@ function parseRedisConfig() {
     ScheduleModule.forRoot(),
     OwnerHubModule,
     RevolutModule,
+    InvoicingModule,
     PrismaModule,
     RedisModule,
     AuthModule,

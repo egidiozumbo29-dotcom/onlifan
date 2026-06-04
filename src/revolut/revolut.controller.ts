@@ -1,34 +1,60 @@
-import { Controller, Post, Body, Headers, HttpCode, Logger } from '@nestjs/common';
-import { RevolutService } from './revolut.service';
+import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import { RevolutService, CreatePaymentOrderDto } from './revolut.service';
+import { InvoicingService } from '../invoicing/invoicing.service';
+import { PrismaService } from '../prisma/prisma.service';
 
-@Controller('revolut')
+@Controller('payments/revolut')
 export class RevolutController {
-  private readonly logger = new Logger(RevolutController.name);
+  constructor(
+    private readonly revolut: RevolutService,
+    private readonly invoicing: InvoicingService,
+    private readonly prisma: PrismaService,
+  ) {}
 
-  constructor(private readonly revolutService: RevolutService) {}
+  @Post('create-order')
+  async createPaymentOrder(@Body() dto: CreatePaymentOrderDto) {
+    const order = await this.revolut.createPaymentOrder(dto);
+    return {
+      success: true,
+      orderId: order.id,
+      checkoutUrl: order.checkout_url,
+    };
+  }
 
-  @Post('webhook')
-  @HttpCode(200)
-  async handleWebhook(
-    @Body() event: any,
-    @Headers('revolut-signature') signature: string,
-  ) {
-    this.logger.log(`Revolut webhook received, signature: ${signature ? 'present' : 'missing'}`);
+  @Get('confirm')
+  async confirmPayment(@Query('orderId') orderId: string) {
+    const isConfirmed = await this.revolut.confirmPayment(orderId);
 
-    // Verifica la firma del webhook (opzionale per ora)
-    const isValid = this.revolutService.verifyWebhookSignature(
-      JSON.stringify(event),
-      signature,
-    );
+    if (isConfirmed) {
+      // Genera fattura automatica
+      const order = await this.revolut.getPaymentOrder(orderId);
 
-    if (!isValid) {
-      this.logger.warn('Invalid Revolut webhook signature');
-      // Per ora non blocco, ma in produzione dovremmo
+      // Cerca il pagamento nel database
+      const payment = await this.prisma.payment.findFirst({
+        where: { stripePaymentId: orderId },
+      });
+
+      if (payment && payment.userId) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: payment.userId },
+        });
+
+        if (user) {
+          await this.invoicing.generateInvoice({
+            paymentId: payment.id,
+            userId: user.id,
+            userEmail: user.email,
+            amount: order.amount / 100,
+            currency: order.currency,
+            description: order.description,
+            date: new Date(order.created_at),
+          });
+        }
+      }
+
+      return { success: true, message: 'Payment confirmed and invoice generated' };
     }
 
-    // Processa l'evento
-    await this.revolutService.handleWebhook(event);
-
-    return { received: true };
+    return { success: false, message: 'Payment not confirmed yet' };
   }
 }
