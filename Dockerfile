@@ -9,6 +9,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
 RUN npm run build
+RUN ls -la dist/ && echo "=== DIST CONTENTS ===" && ls -la dist/
 
 FROM node:22-alpine AS runner
 WORKDIR /app
