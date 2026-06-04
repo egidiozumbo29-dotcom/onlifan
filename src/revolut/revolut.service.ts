@@ -59,7 +59,7 @@ export class RevolutService {
       this.logger.log(`Payment order created: ${response.data.id}`);
       return response.data;
     } catch (error) {
-      this.logger.error(`Failed to create payment order: ${error.message}`);
+      this.logger.error(`Failed to create payment order: ${(error as Error).message}`);
       throw new Error('Failed to create payment order');
     }
   }
@@ -77,7 +77,7 @@ export class RevolutService {
 
       return response.data;
     } catch (error) {
-      this.logger.error(`Failed to get payment order: ${error.message}`);
+      this.logger.error(`Failed to get payment order: ${(error as Error).message}`);
       throw new Error('Failed to get payment order');
     }
   }
@@ -87,7 +87,7 @@ export class RevolutService {
       const order = await this.getPaymentOrder(orderId);
       return order.status === 'COMPLETED';
     } catch (error) {
-      this.logger.error(`Failed to confirm payment: ${error.message}`);
+      this.logger.error(`Failed to confirm payment: ${(error as Error).message}`);
       return false;
     }
   }
