@@ -1,9 +1,11 @@
-import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, UseGuards } from '@nestjs/common';
 import { RevolutService, CreatePaymentOrderDto } from './revolut.service';
 import { InvoicingService } from '../invoicing/invoicing.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('payments/revolut')
+@UseGuards(JwtAuthGuard)
 export class RevolutController {
   constructor(
     private readonly revolut: RevolutService,
