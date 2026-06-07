@@ -1,7 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('admin/dashboard')
+@UseGuards(JwtAuthGuard)
 export class AdminDashboardController {
   constructor(private prisma: PrismaService) {}
 
