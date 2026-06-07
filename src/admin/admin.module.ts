@@ -6,8 +6,10 @@ import { AdminRefundsController } from './admin-refunds.controller';
 import { AdminKycController } from './admin-kyc.controller';
 import { AdminExportsController } from './admin-exports.controller';
 import { AdminAuditController } from './admin-audit.controller';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
+  imports: [PrismaModule],
   controllers: [
     AdminDashboardController,
     AdminModerationController,
