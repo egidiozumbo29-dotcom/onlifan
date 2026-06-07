@@ -7,6 +7,7 @@ import { AdminKycController } from './admin-kyc.controller';
 import { AdminExportsController } from './admin-exports.controller';
 import { AdminAuditController } from './admin-audit.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
   imports: [PrismaModule],
@@ -19,6 +20,6 @@ import { PrismaModule } from '../prisma/prisma.module';
     AdminExportsController,
     AdminAuditController
   ],
-  providers: []
+  providers: [PrismaService]
 })
 export class AdminModule {}
