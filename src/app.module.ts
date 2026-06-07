@@ -36,7 +36,6 @@ import { PaymentsAdapterModule } from './payments-adapters/payments-adapter.modu
 import { OwnerHubModule } from './owner-hub/owner-hub.module';
 import { RevolutModule } from './revolut/revolut.module';
 import { InvoicingModule } from './invoicing/invoicing.module';
-import { AdminModule } from './admin/admin.module';
 
 function parseRedisConfig() {
   const url = process.env.REDIS_URL;
