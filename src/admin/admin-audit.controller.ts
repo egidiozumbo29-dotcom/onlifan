@@ -8,6 +8,7 @@ export class AdminAuditController {
   @Get('logs')
   async getAuditLogs(@Query('limit') limit: string = '50') {
     const logs = await this.prisma.auditLog.findMany({
+      include: { actor: true },
       orderBy: { createdAt: 'desc' },
       take: parseInt(limit)
     });

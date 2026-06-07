@@ -9,21 +9,16 @@ export class AdminModerationController {
   async getReports(@Query('status') status?: string) {
     const reports = await this.prisma.report.findMany({
       where: status ? { status: status as any } : undefined,
-      include: {
-        reporter: {
-          select: { displayName: true, email: true },
-        },
-      },
+      include: { reporter: true },
       orderBy: { createdAt: 'desc' }
     });
 
     return reports.map(r => ({
       id: r.id,
-      reporterName: r.reporter.displayName,
-      reporterEmail: r.reporter.email,
       targetType: r.targetType,
       targetId: r.targetId,
       reason: r.reason,
+      reporterEmail: r.reporter?.email || 'Unknown',
       status: r.status,
       createdAt: r.createdAt
     }));
@@ -31,21 +26,21 @@ export class AdminModerationController {
 
   @Post(':id/resolve')
   async resolveReport(@Param('id') id: string) {
-    await this.prisma.report.update({
+    const report = await this.prisma.report.update({
       where: { id },
       data: { status: 'RESOLVED' }
     });
 
-    return { success: true, message: 'Report resolved' };
+    return { success: true, message: 'Report resolved', report };
   }
 
-  @Post(':id/dismiss')
-  async dismissReport(@Param('id') id: string) {
-    await this.prisma.report.update({
+  @Post(':id/reject')
+  async rejectReport(@Param('id') id: string) {
+    const report = await this.prisma.report.update({
       where: { id },
-      data: { status: 'CLOSED' }
+      data: { status: 'REJECTED' }
     });
 
-    return { success: true, message: 'Report dismissed' };
+    return { success: true, message: 'Report rejected', report };
   }
 }

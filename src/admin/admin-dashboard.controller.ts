@@ -8,7 +8,7 @@ export class AdminDashboardController {
   @Get('stats')
   async getStats() {
     const totalRevenue = await this.prisma.payment.aggregate({
-      where: { status: 'COMPLETED' },
+      where: { status: 'SUCCEEDED' },
       _sum: { amountCents: true }
     });
 
@@ -29,7 +29,7 @@ export class AdminDashboardController {
   @Get('recent-payments')
   async getRecentPayments() {
     const payments = await this.prisma.payment.findMany({
-      where: { status: 'COMPLETED' },
+      where: { status: 'SUCCEEDED' },
       include: { fan: true },
       orderBy: { createdAt: 'desc' },
       take: 10

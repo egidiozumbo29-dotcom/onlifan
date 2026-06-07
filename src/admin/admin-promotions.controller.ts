@@ -31,7 +31,8 @@ export class AdminPromotionsController {
         code: body.code,
         type: body.type as any,
         value: body.value,
-        creatorId: body.creatorId
+        creatorId: body.creatorId,
+        status: 'ACTIVE'
       }
     });
 

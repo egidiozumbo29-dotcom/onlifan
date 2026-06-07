@@ -9,15 +9,8 @@ export class AdminExportsController {
   @Get('revenue-report')
   async exportRevenueReport(@Res() res: Response) {
     const payments = await this.prisma.payment.findMany({
-      where: { status: 'COMPLETED' as any },
-      include: {
-        creator: {
-          include: {
-            user: true
-          }
-        },
-        fan: true
-      },
+      where: { status: 'SUCCEEDED' },
+      include: { creator: true, fan: true },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -26,7 +19,7 @@ export class AdminExportsController {
       ...payments.map(p =>
         [
           p.createdAt.toISOString(),
-          p.creator?.user?.displayName || 'Unknown',
+          p.creator?.displayName || 'Unknown',
           p.fan?.email || 'Unknown',
           (p.amountCents / 100).toFixed(2),
           p.currency,
