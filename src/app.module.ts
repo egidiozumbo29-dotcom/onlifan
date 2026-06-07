@@ -72,6 +72,7 @@ function parseRedisConfig() {
     ScheduleModule.forRoot(),
     OwnerHubModule,
     RevolutModule,
+    AdminModule,
     PrismaModule,
     RedisModule,
     AuthModule,
